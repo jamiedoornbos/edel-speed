@@ -318,6 +318,94 @@ button.primary:hover {
   padding: 20px;
 }
 
+/* Settings sections */
+.settings-section {
+  margin-bottom: 48px;
+}
+
+.settings-section h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+  max-width: 420px;
+}
+
+.settings-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+}
+
+.ls-status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  max-width: 420px;
+  font-size: 14px;
+}
+
+.ls-status.connected {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.btn-disconnect {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-disconnect:hover {
+  background: #b91c1c;
+}
+
+.ls-connect {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 560px;
+}
+
+.connect-steps {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.7;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Review status indicators */
+.fetch-status {
+  font-size: 13px;
+  padding-bottom: 4px;
+}
+
+.status-loading { color: #6b7280; }
+.status-ok      { color: #16a34a; font-weight: 600; }
+.status-error   { color: #dc2626; font-weight: 600; }
+.status-warn    { color: #d97706; }
+
+.ls-found   { color: #16a34a; font-weight: 600; }
+.ls-missing { color: #dc2626; }
+
 /* Error */
 .error {
   color: #dc2626;

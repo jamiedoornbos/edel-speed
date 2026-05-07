@@ -21,3 +21,18 @@ export interface VendorMapping {
   vendor: string;
   publisher: string;
 }
+
+export interface LightspeedConfig {
+  clientId: string;
+  clientSecret: string;
+  accountId: string;
+  refreshToken: string;
+}
+
+// Fields we're confident about; treat the rest as unknown until verified against a live response.
+export interface LightspeedItem {
+  itemID: string;
+  description: string;
+  customSku: string;
+  [key: string]: unknown;
+}

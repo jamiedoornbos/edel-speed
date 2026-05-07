@@ -6,6 +6,15 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "fs:read-files"
+    "fs:read-files",
+    "http:default",
+    "http:allow-fetch-send",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        { "url": "https://cloud.lightspeedapp.com/**" },
+        { "url": "https://api.lightspeedapp.com/**" }
+      ]
+    }
   ]
 }

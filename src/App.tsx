@@ -3,10 +3,11 @@ import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import Import from "./pages/Import";
 import Review from "./pages/Review";
 import Settings from "./pages/Settings";
-import { Order, VendorMapping } from "./types";
+import { Order, VendorMapping, LightspeedConfig } from "./types";
 import "./App.css";
 
 const MAPPINGS_KEY = "edelspeed.vendorMappings";
+const LS_CONFIG_KEY = "edelspeed.lightspeedConfig";
 
 const DEFAULT_MAPPINGS: VendorMapping[] = [
   { infix: "ABR", vendor: "Hachette",             publisher: "Abrams"             },
@@ -34,6 +35,13 @@ const DEFAULT_MAPPINGS: VendorMapping[] = [
   { infix: "SOU", vendor: "Sourcebooks",           publisher: ""                   },
 ];
 
+const DEFAULT_LS_CONFIG: LightspeedConfig = {
+  clientId: "",
+  clientSecret: "",
+  accountId: "",
+  refreshToken: "",
+};
+
 function loadMappings(): VendorMapping[] {
   try {
     const stored = localStorage.getItem(MAPPINGS_KEY);
@@ -44,13 +52,29 @@ function loadMappings(): VendorMapping[] {
   }
 }
 
+function loadLsConfig(): LightspeedConfig {
+  try {
+    const stored = localStorage.getItem(LS_CONFIG_KEY);
+    if (stored === null) return DEFAULT_LS_CONFIG;
+    return { ...DEFAULT_LS_CONFIG, ...JSON.parse(stored) };
+  } catch {
+    return DEFAULT_LS_CONFIG;
+  }
+}
+
 function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [mappings, setMappings] = useState<VendorMapping[]>(loadMappings);
+  const [lsConfig, setLsConfig] = useState<LightspeedConfig>(loadLsConfig);
 
   const saveMappings = (next: VendorMapping[]) => {
     setMappings(next);
     localStorage.setItem(MAPPINGS_KEY, JSON.stringify(next));
+  };
+
+  const saveLsConfig = (next: LightspeedConfig) => {
+    setLsConfig(next);
+    localStorage.setItem(LS_CONFIG_KEY, JSON.stringify(next));
   };
 
   return (
@@ -65,8 +89,15 @@ function App() {
         <main className="content">
           <Routes>
             <Route path="/" element={<Import onImport={setOrders} mappings={mappings} />} />
-            <Route path="/review" element={<Review orders={orders} />} />
-            <Route path="/settings" element={<Settings mappings={mappings} onMappingsChange={saveMappings} />} />
+            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} />} />
+            <Route path="/settings" element={
+              <Settings
+                mappings={mappings}
+                onMappingsChange={saveMappings}
+                lsConfig={lsConfig}
+                onLsConfigChange={saveLsConfig}
+              />
+            } />
           </Routes>
         </main>
       </div>
