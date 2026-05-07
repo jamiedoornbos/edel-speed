@@ -47,7 +47,7 @@ async function fetchAccountId(accessToken: string): Promise<string> {
     throw new Error(`Account lookup failed (${res.status}): ${text}`);
   }
   const data = await res.json() as Record<string, unknown>;
-  console.log("[Lightspeed] raw Account response:", JSON.stringify(data, null, 2));
+  console.log("[Lightspeed] raw Account response:", data);
   const account = data["Account"] as Record<string, string>;
   return account["accountID"];
 }
@@ -82,7 +82,7 @@ async function fetchBatch(
   accountId: string,
   skus: string[]
 ): Promise<LightspeedItem[]> {
-  const url = `${API_BASE}/Account/${accountId}/Item.json?customSku=IN,[${skus.join(",")}]`;
+  const url = `${API_BASE}/Account/${accountId}/Item.json?customSku=IN,[${skus.join(",")}]&load_relations=["Tags"]`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -93,7 +93,7 @@ async function fetchBatch(
   const data = await res.json() as Record<string, unknown>;
 
   // Log the raw response once so field names can be verified.
-  console.log("[Lightspeed] raw Item response:", JSON.stringify(data, null, 2));
+  console.log("[Lightspeed] raw Item response:", data);
 
   const raw = data["Item"];
   if (!raw) return [];
