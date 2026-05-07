@@ -267,6 +267,57 @@ button.primary:hover {
   color: #7c3aed;
 }
 
+/* Settings mapping form */
+.mapping-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.mapping-input {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 14px;
+  flex: 1;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.mapping-input:focus {
+  outline: none;
+  border-color: #7c3aed;
+}
+
+.mapping-input.infix {
+  flex: 0 0 70px;
+  text-transform: uppercase;
+  font-family: monospace;
+}
+
+.btn-remove {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #dc2626;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-remove:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.empty-row {
+  color: #999;
+  text-align: center;
+  padding: 20px;
+}
+
 /* Error */
 .error {
   color: #dc2626;

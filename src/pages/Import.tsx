@@ -3,10 +3,11 @@ import Papa from "papaparse";
 import { useNavigate } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import { EdelweissItem, Order } from "../types";
+import { EdelweissItem, Order, VendorMapping } from "../types";
 
 interface Props {
   onImport: (orders: Order[]) => void;
+  mappings: VendorMapping[];
 }
 
 interface DragDropPayload {
@@ -19,49 +20,62 @@ function extractOrderId(filename: string): string {
   return match ? match[1] : filename.replace(/\.csv$/i, "");
 }
 
-export default function Import({ onImport }: Props) {
+// BLCHR526 → CHR  (skip first 2 chars, take 2–3 letters before the digits)
+function extractInfix(orderId: string): string {
+  const match = orderId.match(/^[A-Z]{2}([A-Z]{2,3})\d/i);
+  return match ? match[1].toUpperCase() : "";
+}
+
+export default function Import({ onImport, mappings }: Props) {
   const [dragging, setDragging] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const parseFile = useCallback((text: string, filename: string) => {
-    const id = extractOrderId(filename);
-    Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (h: string) => h.trim(),
-      complete: (results) => {
-        const items: EdelweissItem[] = (results.data as Record<string, string>[])
-          .map((row) => ({
-            title: row["Title"]?.trim() ?? "",
-            ean: row["EAN"]?.trim() ?? "",
-            vendor: row["Vendor"]?.trim() ?? "",
-            listPrice: parseFloat(row["List Price"]) || 0,
-            storeCategory: row["Store Category"]?.trim() ?? "",
-            author: row["Author"]?.trim() ?? "",
-            cost: parseFloat(row["Cost"]) || 0,
-          }))
-          .filter((item) => item.ean !== "");
+  const parseFile = useCallback(
+    (text: string, filename: string) => {
+      const id = extractOrderId(filename);
+      const infix = extractInfix(id);
+      const mapping = mappings.find((m) => m.infix === infix);
 
-        const order: Order = { id, filename, items };
-        setOrders((prev) => {
-          const idx = prev.findIndex((o) => o.id === id);
-          if (idx >= 0) {
-            const updated = [...prev];
-            updated[idx] = order;
-            return updated;
-          }
-          return [...prev, order];
-        });
-        setActiveTab(id);
-      },
-      error: () => {
-        setError(`Failed to parse ${filename}.`);
-      },
-    });
-  }, []);
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (h: string) => h.trim(),
+        complete: (results) => {
+          const items: EdelweissItem[] = (results.data as Record<string, string>[])
+            .map((row) => ({
+              title: row["Title"]?.trim() ?? "",
+              ean: row["EAN"]?.trim() ?? "",
+              vendor: mapping?.vendor ?? row["Vendor"]?.trim() ?? "",
+              publisher: mapping?.publisher ?? "",
+              listPrice: parseFloat(row["List Price"]) || 0,
+              storeCategory: row["Store Category"]?.trim() ?? "",
+              author: row["Author"]?.trim() ?? "",
+              cost: parseFloat(row["Cost"]) || 0,
+            }))
+            .filter((item) => item.ean !== "");
+
+          const order: Order = { id, infix, filename, items };
+          setOrders((prev) => {
+            const idx = prev.findIndex((o) => o.id === id);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = order;
+              return updated;
+            }
+            return [...prev, order];
+          });
+          setActiveTab(id);
+        },
+        error: () => {
+          setError(`Failed to parse ${filename}.`);
+        },
+      });
+    },
+    [mappings]
+  );
 
   useEffect(() => {
     const unlistenDrop = listen<DragDropPayload>("tauri://drag-drop", async (event) => {
@@ -170,22 +184,24 @@ export default function Import({ onImport }: Props) {
               <thead>
                 <tr>
                   <th>Title</th>
-                  <th>EAN</th>
                   <th>Author</th>
+                  <th>EAN</th>
+                  <th>Vendor</th>
+                  <th>Publisher</th>
                   <th>List Price</th>
                   <th>Cost</th>
-                  <th>Category</th>
                 </tr>
               </thead>
               <tbody>
                 {activeOrder.items.map((item) => (
                   <tr key={item.ean}>
                     <td>{item.title}</td>
-                    <td className="mono">{item.ean}</td>
                     <td>{item.author}</td>
+                    <td className="mono">{item.ean}</td>
+                    <td>{item.vendor}</td>
+                    <td>{item.publisher}</td>
                     <td>${item.listPrice.toFixed(2)}</td>
                     <td>${item.cost.toFixed(2)}</td>
-                    <td>{item.storeCategory}</td>
                   </tr>
                 ))}
               </tbody>
