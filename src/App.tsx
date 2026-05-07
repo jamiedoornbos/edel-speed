@@ -3,11 +3,11 @@ import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import Import from "./pages/Import";
 import Review from "./pages/Review";
 import Settings from "./pages/Settings";
-import { EdelweissItem } from "./types";
+import { Order } from "./types";
 import "./App.css";
 
 function App() {
-  const [importedItems, setImportedItems] = useState<EdelweissItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
 
   return (
     <BrowserRouter>
@@ -20,8 +20,8 @@ function App() {
         </nav>
         <main className="content">
           <Routes>
-            <Route path="/" element={<Import onImport={setImportedItems} />} />
-            <Route path="/review" element={<Review items={importedItems} />} />
+            <Route path="/" element={<Import onImport={setOrders} />} />
+            <Route path="/review" element={<Review orders={orders} />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>

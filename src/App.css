@@ -200,6 +200,73 @@ button.primary:hover {
   background: #6d28d9;
 }
 
+/* Compact drop zone (files already loaded) */
+.drop-zone.compact {
+  padding: 16px 24px;
+  margin-bottom: 16px;
+}
+
+.drop-zone.compact .drop-icon {
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+/* Tabs */
+.orders-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 2px;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  border-radius: 6px 6px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.tab:hover {
+  color: #1a1a1a;
+  background: #f0f0f0;
+}
+
+.tab.active {
+  color: #7c3aed;
+  border-bottom-color: #7c3aed;
+  font-weight: 600;
+}
+
+.tab-count {
+  background: #e5e7eb;
+  color: #555;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.tab.active .tab-count {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
 /* Error */
 .error {
   color: #dc2626;

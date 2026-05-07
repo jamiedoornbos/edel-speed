@@ -1,15 +1,15 @@
-import { EdelweissItem } from "../types";
+import { Order } from "../types";
 
 interface Props {
-  items: EdelweissItem[];
+  orders: Order[];
 }
 
-export default function Review({ items }: Props) {
-  if (items.length === 0) {
+export default function Review({ orders }: Props) {
+  if (orders.length === 0) {
     return (
       <div className="page">
         <h1>Review</h1>
-        <p className="subtitle">No items loaded. Go back to Import first.</p>
+        <p className="subtitle">No orders loaded. Go back to Import first.</p>
       </div>
     );
   }

@@ -3,10 +3,10 @@ import Papa from "papaparse";
 import { useNavigate } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import { EdelweissItem } from "../types";
+import { EdelweissItem, Order } from "../types";
 
 interface Props {
-  onImport: (items: EdelweissItem[]) => void;
+  onImport: (orders: Order[]) => void;
 }
 
 interface DragDropPayload {
@@ -14,21 +14,24 @@ interface DragDropPayload {
   position: { x: number; y: number };
 }
 
+function extractOrderId(filename: string): string {
+  const match = filename.match(/OrderExport_(\w+)\.csv/i);
+  return match ? match[1] : filename.replace(/\.csv$/i, "");
+}
+
 export default function Import({ onImport }: Props) {
   const [dragging, setDragging] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<EdelweissItem[]>([]);
   const navigate = useNavigate();
 
-  const parseText = useCallback((text: string, name: string) => {
-    setError(null);
-    setFileName(name);
-
+  const parseFile = useCallback((text: string, filename: string) => {
+    const id = extractOrderId(filename);
     Papa.parse(text, {
       header: true,
       skipEmptyLines: true,
-      transformHeader: (header: string) => header.trim(),
+      transformHeader: (h: string) => h.trim(),
       complete: (results) => {
         const items: EdelweissItem[] = (results.data as Record<string, string>[])
           .map((row) => ({
@@ -42,29 +45,41 @@ export default function Import({ onImport }: Props) {
           }))
           .filter((item) => item.ean !== "");
 
-        setPreview(items);
+        const order: Order = { id, filename, items };
+        setOrders((prev) => {
+          const idx = prev.findIndex((o) => o.id === id);
+          if (idx >= 0) {
+            const updated = [...prev];
+            updated[idx] = order;
+            return updated;
+          }
+          return [...prev, order];
+        });
+        setActiveTab(id);
       },
       error: () => {
-        setError("Failed to parse CSV. Please check the file format.");
+        setError(`Failed to parse ${filename}.`);
       },
     });
   }, []);
 
-  // Tauri native drag-drop (works on Linux/WebKitGTK)
   useEffect(() => {
     const unlistenDrop = listen<DragDropPayload>("tauri://drag-drop", async (event) => {
       setDragging(false);
-      const path = event.payload.paths[0];
-      if (!path?.endsWith(".csv")) {
-        setError("Please drop a CSV file.");
+      setError(null);
+      const csvPaths = event.payload.paths.filter((p) => p.endsWith(".csv"));
+      if (csvPaths.length === 0) {
+        setError("Please drop CSV files.");
         return;
       }
-      try {
-        const text = await readTextFile(path);
-        const name = path.split("/").pop() ?? path;
-        parseText(text, name);
-      } catch {
-        setError("Could not read the file.");
+      for (const path of csvPaths) {
+        try {
+          const text = await readTextFile(path);
+          const name = path.split("/").pop() ?? path;
+          parseFile(text, name);
+        } catch {
+          setError("Could not read one or more files.");
+        }
       }
     });
 
@@ -76,92 +91,106 @@ export default function Import({ onImport }: Props) {
       unlistenEnter.then((f) => f());
       unlistenLeave.then((f) => f());
     };
-  }, [parseText]);
+  }, [parseFile]);
 
-  // Fallback: click to browse
   const onFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => parseText(ev.target?.result as string, file.name);
-      reader.readAsText(file);
+      Array.from(e.target.files ?? []).forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => parseFile(ev.target?.result as string, file.name);
+        reader.readAsText(file);
+      });
+      e.target.value = "";
     },
-    [parseText]
+    [parseFile]
   );
 
   const handleProceed = () => {
-    onImport(preview);
+    onImport(orders);
     navigate("/review");
   };
 
+  const activeOrder = orders.find((o) => o.id === activeTab);
+
   return (
     <div className="page">
-      <h1>Import Edelweiss Order</h1>
-      <p className="subtitle">
-        Log into Edelweiss, download your order export, then drop it below.
-      </p>
+      <h1>Import Edelweiss Orders</h1>
+      <p className="subtitle">Drop one or more Edelweiss order exports below.</p>
 
       <div
-        className={`drop-zone ${dragging ? "dragging" : ""} ${fileName ? "has-file" : ""}`}
+        className={`drop-zone ${dragging ? "dragging" : ""} ${orders.length > 0 ? "has-file compact" : ""}`}
         onClick={() => document.getElementById("file-input")?.click()}
       >
         <input
           id="file-input"
           type="file"
           accept=".csv"
+          multiple
           style={{ display: "none" }}
           onChange={onFileInput}
         />
-        {fileName ? (
+        {orders.length > 0 ? (
           <>
-            <div className="drop-icon">✓</div>
-            <div className="drop-filename">{fileName}</div>
-            <div className="drop-hint">Drop another file to replace</div>
+            <div className="drop-icon">+</div>
+            <div className="drop-hint">Drop more files or click to add</div>
           </>
         ) : (
           <>
             <div className="drop-icon">↓</div>
-            <div className="drop-label">Drop CSV here</div>
-            <div className="drop-hint">or click to browse</div>
+            <div className="drop-label">Drop CSV files here</div>
+            <div className="drop-hint">or click to browse · multiple files supported</div>
           </>
         )}
       </div>
 
       {error && <p className="error">{error}</p>}
 
-      {preview.length > 0 && (
+      {orders.length > 0 && (
         <>
-          <div className="preview-header">
-            <span>{preview.length} titles found</span>
+          <div className="orders-header">
+            <div className="tab-bar">
+              {orders.map((order) => (
+                <button
+                  key={order.id}
+                  className={`tab ${order.id === activeTab ? "active" : ""}`}
+                  onClick={() => setActiveTab(order.id)}
+                >
+                  {order.id}
+                  <span className="tab-count">{order.items.length}</span>
+                </button>
+              ))}
+            </div>
             <button className="primary" onClick={handleProceed}>
               Proceed to Review →
             </button>
           </div>
-          <table className="preview-table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>EAN</th>
-                <th>Author</th>
-                <th>List Price</th>
-                <th>Cost</th>
-                <th>Category</th>
-              </tr>
-            </thead>
-            <tbody>
-              {preview.map((item) => (
-                <tr key={item.ean}>
-                  <td>{item.title}</td>
-                  <td className="mono">{item.ean}</td>
-                  <td>{item.author}</td>
-                  <td>${item.listPrice.toFixed(2)}</td>
-                  <td>${item.cost.toFixed(2)}</td>
-                  <td>{item.storeCategory}</td>
+
+          {activeOrder && (
+            <table className="preview-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>EAN</th>
+                  <th>Author</th>
+                  <th>List Price</th>
+                  <th>Cost</th>
+                  <th>Category</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {activeOrder.items.map((item) => (
+                  <tr key={item.ean}>
+                    <td>{item.title}</td>
+                    <td className="mono">{item.ean}</td>
+                    <td>{item.author}</td>
+                    <td>${item.listPrice.toFixed(2)}</td>
+                    <td>${item.cost.toFixed(2)}</td>
+                    <td>{item.storeCategory}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </>
       )}
     </div>

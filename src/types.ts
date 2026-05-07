@@ -7,3 +7,9 @@ export interface EdelweissItem {
   author: string;
   cost: number;
 }
+
+export interface Order {
+  id: string;
+  filename: string;
+  items: EdelweissItem[];
+}
