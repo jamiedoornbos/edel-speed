@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Order, LightspeedConfig, LightspeedItem } from "../types";
+import { Order, LightspeedConfig, LightspeedItem, EdelweissItem } from "../types";
 import { getAccessToken, searchByCustomSku } from "../lightspeed";
 
 interface Props {
@@ -8,6 +8,32 @@ interface Props {
 }
 
 type FetchState = "idle" | "loading" | "done" | "error";
+
+const COLUMNS = (
+  <tr>
+    <th>Title</th>
+    <th>Author</th>
+    <th>EAN</th>
+    <th>Vendor</th>
+    <th>Brand</th>
+    <th>List Price</th>
+    <th>Cost</th>
+  </tr>
+);
+
+function ItemRow({ item }: { item: EdelweissItem }) {
+  return (
+    <tr key={item.ean}>
+      <td>{item.title}</td>
+      <td>{item.author}</td>
+      <td className="mono">{item.ean}</td>
+      <td>{item.vendor}</td>
+      <td>{item.brand}</td>
+      <td>${item.listPrice.toFixed(2)}</td>
+      <td>${item.cost.toFixed(2)}</td>
+    </tr>
+  );
+}
 
 export default function Review({ orders, lsConfig }: Props) {
   const [lsItems, setLsItems] = useState<Map<string, LightspeedItem>>(new Map());
@@ -49,6 +75,8 @@ export default function Review({ orders, lsConfig }: Props) {
   }
 
   const activeOrder = orders.find((o) => o.id === activeTab) ?? orders[0];
+  const updates = activeOrder.items.filter((item) => lsItems.has(item.ean));
+  const additions = activeOrder.items.filter((item) => !lsItems.has(item.ean));
 
   return (
     <div className="page">
@@ -77,39 +105,43 @@ export default function Review({ orders, lsConfig }: Props) {
 
       {fetchState === "error" && fetchError && <p className="error">{fetchError}</p>}
 
-      <table className="preview-table">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Author</th>
-            <th>EAN</th>
-            <th>Vendor</th>
-            <th>Publisher</th>
-            <th>List Price</th>
-            <th>Cost</th>
-            <th>In Lightspeed</th>
-          </tr>
-        </thead>
-        <tbody>
-          {activeOrder.items.map((item) => {
-            const lsItem = lsItems.get(item.ean);
-            return (
-              <tr key={item.ean}>
-                <td>{item.title}</td>
-                <td>{item.author}</td>
-                <td className="mono">{item.ean}</td>
-                <td>{item.vendor}</td>
-                <td>{item.publisher}</td>
-                <td>${item.listPrice.toFixed(2)}</td>
-                <td>${item.cost.toFixed(2)}</td>
-                <td className={lsItem ? "ls-found" : fetchState === "done" ? "ls-missing" : ""}>
-                  {fetchState === "done" ? (lsItem ? `✓ #${lsItem.itemID}` : "Not found") : "—"}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      {(fetchState === "idle" || fetchState === "loading") && (
+        <p className="subtitle">
+          {isConfigured ? "Checking Lightspeed…" : "Configure Lightspeed in Settings to continue."}
+        </p>
+      )}
+
+      {fetchState === "done" && (
+        <>
+          <section className="review-section">
+            <h2>Updates <span className="section-count">{updates.length}</span></h2>
+            {updates.length === 0 ? (
+              <p className="subtitle">No existing items to update.</p>
+            ) : (
+              <table className="preview-table">
+                <thead>{COLUMNS}</thead>
+                <tbody>
+                  {updates.map((item) => <ItemRow key={item.ean} item={item} />)}
+                </tbody>
+              </table>
+            )}
+          </section>
+
+          <section className="review-section">
+            <h2>Additions <span className="section-count">{additions.length}</span></h2>
+            {additions.length === 0 ? (
+              <p className="subtitle">No new items to add.</p>
+            ) : (
+              <table className="preview-table">
+                <thead>{COLUMNS}</thead>
+                <tbody>
+                  {additions.map((item) => <ItemRow key={item.ean} item={item} />)}
+                </tbody>
+              </table>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }

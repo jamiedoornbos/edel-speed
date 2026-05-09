@@ -318,6 +318,29 @@ button.primary:hover {
   padding: 20px;
 }
 
+/* Review sections */
+.review-section {
+  margin-bottom: 48px;
+}
+
+.review-section h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-count {
+  font-size: 12px;
+  font-weight: 600;
+  background: #e5e7eb;
+  color: #555;
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
 /* Settings sections */
 .settings-section {
   margin-bottom: 48px;

@@ -49,7 +49,7 @@ export default function Import({ onImport, mappings }: Props) {
               title: row["Title"]?.trim() ?? "",
               ean: row["EAN"]?.trim() ?? "",
               vendor: mapping?.vendor ?? row["Vendor"]?.trim() ?? "",
-              publisher: mapping?.publisher ?? "",
+              brand: mapping?.brand ?? "",
               listPrice: parseFloat(row["List Price"]) || 0,
               storeCategory: row["Store Category"]?.trim() ?? "",
               author: row["Author"]?.trim() ?? "",
@@ -187,7 +187,7 @@ export default function Import({ onImport, mappings }: Props) {
                   <th>Author</th>
                   <th>EAN</th>
                   <th>Vendor</th>
-                  <th>Publisher</th>
+                  <th>Brand</th>
                   <th>List Price</th>
                   <th>Cost</th>
                 </tr>
@@ -199,7 +199,7 @@ export default function Import({ onImport, mappings }: Props) {
                     <td>{item.author}</td>
                     <td className="mono">{item.ean}</td>
                     <td>{item.vendor}</td>
-                    <td>{item.publisher}</td>
+                    <td>{item.brand}</td>
                     <td>${item.listPrice.toFixed(2)}</td>
                     <td>${item.cost.toFixed(2)}</td>
                   </tr>

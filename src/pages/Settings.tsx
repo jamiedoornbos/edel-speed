@@ -18,7 +18,7 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
   // Vendor mapping form
   const [infix, setInfix] = useState("");
   const [vendor, setVendor] = useState("");
-  const [publisher, setPublisher] = useState("");
+  const [brand, setBrand] = useState("");
 
   // Lightspeed OAuth form
   const [clientId, setClientId] = useState(lsConfig.clientId);
@@ -34,7 +34,7 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
   const addMapping = () => {
     const key = infix.trim().toUpperCase();
     if (!key || !vendor.trim()) return;
-    const entry: VendorMapping = { infix: key, vendor: vendor.trim(), publisher: publisher.trim() };
+    const entry: VendorMapping = { infix: key, vendor: vendor.trim(), brand: brand.trim() };
     const existing = mappings.findIndex((m) => m.infix === key);
     if (existing >= 0) {
       const updated = [...mappings];
@@ -45,7 +45,7 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
     }
     setInfix("");
     setVendor("");
-    setPublisher("");
+    setBrand("");
   };
 
   const removeMapping = (key: string) => {
@@ -144,14 +144,14 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
       {/* ── Vendor Mappings ── */}
       {activeTab === "mappings" && (
         <section className="settings-section">
-          <p className="subtitle">Map order ID codes to Lightspeed vendor and publisher.</p>
+          <p className="subtitle">Map order ID codes to Lightspeed vendor and brand.</p>
 
           <table className="preview-table">
             <thead>
               <tr>
                 <th>Code</th>
                 <th>Vendor</th>
-                <th>Publisher</th>
+                <th>Brand</th>
                 <th></th>
               </tr>
             </thead>
@@ -165,7 +165,7 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
                 <tr key={m.infix}>
                   <td className="mono">{m.infix}</td>
                   <td>{m.vendor}</td>
-                  <td>{m.publisher}</td>
+                  <td>{m.brand}</td>
                   <td>
                     <button className="btn-remove" onClick={() => removeMapping(m.infix)}>Remove</button>
                   </td>
@@ -190,9 +190,9 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
             />
             <input
               className="mapping-input"
-              placeholder="Publisher"
-              value={publisher}
-              onChange={(e) => setPublisher(e.target.value)}
+              placeholder="Brand"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
             />
             <button className="primary" onClick={addMapping}>Add</button>
           </div>
