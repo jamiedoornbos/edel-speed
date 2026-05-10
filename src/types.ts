@@ -35,6 +35,7 @@ export interface LightspeedItem {
   customSku: string;
   defaultCost: string;
   defaultVendorID: string;
+  manufacturerID: string;
   Tags?: { tag: string | string[] };
   [key: string]: unknown;
 }
@@ -46,6 +47,7 @@ export interface LightspeedUpdate {
   lsTags: string[];
   lsCost: number;
   lsVendorName: string;
+  lsManufacturerName: string;
   costDiffers: boolean;
   vendorDiffers: boolean;
   brandDiffers: boolean;

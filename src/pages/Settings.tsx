@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { VendorMapping, LightspeedConfig } from "../types";
-import { buildAuthorizeUrl, exchangeCode, getAccessToken, fetchVendors } from "../lightspeed";
+import { buildAuthorizeUrl, exchangeCode, getAccessToken, fetchVendors, fetchManufacturers } from "../lightspeed";
 
 interface Props {
   mappings: VendorMapping[];
@@ -10,11 +10,13 @@ interface Props {
   onLsConfigChange: (config: LightspeedConfig) => void;
   vendorMap: Map<string, string>;
   onVendorMapChange: (map: Map<string, string>) => void;
+  manufacturerMap: Map<string, string>;
+  onManufacturerMapChange: (map: Map<string, string>) => void;
 }
 
 type SettingsTab = "lightspeed" | "mappings";
 
-export default function Settings({ mappings, onMappingsChange, lsConfig, onLsConfigChange, vendorMap, onVendorMapChange }: Props) {
+export default function Settings({ mappings, onMappingsChange, lsConfig, onLsConfigChange, vendorMap, onVendorMapChange, manufacturerMap, onManufacturerMapChange }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("lightspeed");
 
   // Vendor mapping form
@@ -54,6 +56,33 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
   const closeSyncModal = () => {
     setSyncOpen(false);
     setSyncState("idle");
+  };
+
+  // Brand (manufacturer) sync modal
+  const [brandSyncOpen, setBrandSyncOpen] = useState(false);
+  const [brandSyncState, setBrandSyncState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [brandSyncError, setBrandSyncError] = useState<string | null>(null);
+  const [brandSyncCount, setBrandSyncCount] = useState(0);
+
+  const handleSyncBrands = async () => {
+    setBrandSyncOpen(true);
+    setBrandSyncState("loading");
+    setBrandSyncError(null);
+    try {
+      const accessToken = await getAccessToken(lsConfig.clientId, lsConfig.clientSecret, lsConfig.refreshToken);
+      const map = await fetchManufacturers(accessToken, lsConfig.accountId);
+      onManufacturerMapChange(map);
+      setBrandSyncCount(map.size);
+      setBrandSyncState("done");
+    } catch (e) {
+      setBrandSyncError(e instanceof Error ? e.message : String(e));
+      setBrandSyncState("error");
+    }
+  };
+
+  const closeBrandSyncModal = () => {
+    setBrandSyncOpen(false);
+    setBrandSyncState("idle");
   };
 
   const isConnected = !!lsConfig.refreshToken;
@@ -146,6 +175,10 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
               <div className="ls-status-row">
                 <span className="vendor-cache-count">{vendorMap.size} vendors cached</span>
                 <button className="primary" onClick={handleSyncVendors}>Sync Vendor List</button>
+              </div>
+              <div className="ls-status-row">
+                <span className="vendor-cache-count">{manufacturerMap.size} brands cached</span>
+                <button className="primary" onClick={handleSyncBrands}>Sync Brand List</button>
               </div>
             </div>
           ) : (
@@ -242,6 +275,19 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
             {syncState === "error" && <p className="error">{syncError}</p>}
             {syncState !== "loading" && (
               <button className="primary" onClick={closeSyncModal}>Close</button>
+            )}
+          </div>
+        </div>
+      )}
+      {brandSyncOpen && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Sync Brand List</h2>
+            {brandSyncState === "loading" && <p>Downloading brands…</p>}
+            {brandSyncState === "done" && <p className="status-ok">✓ {brandSyncCount} brands synced.</p>}
+            {brandSyncState === "error" && <p className="error">{brandSyncError}</p>}
+            {brandSyncState !== "loading" && (
+              <button className="primary" onClick={closeBrandSyncModal}>Close</button>
             )}
           </div>
         </div>

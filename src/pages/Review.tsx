@@ -6,6 +6,7 @@ interface Props {
   orders: Order[];
   lsConfig: LightspeedConfig;
   vendorMap: Map<string, string>;
+  manufacturerMap: Map<string, string>;
 }
 
 type FetchState = "idle" | "loading" | "done" | "error";
@@ -45,7 +46,7 @@ function UpdateRow({ u }: { u: LightspeedUpdate }) {
       <td className="mono">{u.edelweiss.ean}</td>
       <DiffCell differs={u.costDiffers} old={`$${u.lsCost.toFixed(2)}`} next={`$${u.edelweiss.cost.toFixed(2)}`} />
       <DiffCell differs={u.vendorDiffers} old={u.lsVendorName} next={u.edelweiss.vendor} />
-      <DiffCell differs={u.brandDiffers} old="" next={u.edelweiss.brand} />
+      <DiffCell differs={u.brandDiffers} old={u.lsManufacturerName} next={u.edelweiss.brand} />
       <DiffCell differs={u.tagsDiffer} old={u.lsTags.join(", ")} next={u.authorTags.join(", ")} />
     </tr>
   );
@@ -65,11 +66,12 @@ function AdditionRow({ item }: { item: EdelweissItem }) {
   );
 }
 
-export default function Review({ orders, lsConfig, vendorMap }: Props) {
+export default function Review({ orders, lsConfig, vendorMap, manufacturerMap }: Props) {
   const [lsItems, setLsItems] = useState<Map<string, LightspeedItem>>(new Map());
   const [fetchState, setFetchState] = useState<FetchState>("idle");
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>(orders[0]?.id ?? null);
+  const [showUnchanged, setShowUnchanged] = useState(false);
 
   const isConfigured = !!(lsConfig.refreshToken && lsConfig.clientId && lsConfig.clientSecret && lsConfig.accountId);
 
@@ -107,7 +109,7 @@ export default function Review({ orders, lsConfig, vendorMap }: Props) {
   const activeOrder = orders.find((o) => o.id === activeTab) ?? orders[0];
   const updates = activeOrder.items
     .filter((item) => lsItems.has(item.ean))
-    .map((item) => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap));
+    .map((item) => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap));
   const additions = activeOrder.items.filter((item) => !lsItems.has(item.ean));
 
   return (
@@ -150,12 +152,24 @@ export default function Review({ orders, lsConfig, vendorMap }: Props) {
             {updates.length === 0 ? (
               <p className="subtitle">No existing items to update.</p>
             ) : (
-              <table className="preview-table">
-                <thead>{UPDATE_COLUMNS}</thead>
-                <tbody>
-                  {updates.map((u) => <UpdateRow key={u.edelweiss.ean} u={u} />)}
-                </tbody>
-              </table>
+              <>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={showUnchanged}
+                    onChange={(e) => setShowUnchanged(e.target.checked)}
+                  />
+                  Show unchanged rows
+                </label>
+                <table className="preview-table">
+                  <thead>{UPDATE_COLUMNS}</thead>
+                  <tbody>
+                    {updates
+                      .filter((u) => showUnchanged || u.costDiffers || u.vendorDiffers || u.brandDiffers || u.tagsDiffer)
+                      .map((u) => <UpdateRow key={u.edelweiss.ean} u={u} />)}
+                  </tbody>
+                </table>
+              </>
             )}
           </section>
 

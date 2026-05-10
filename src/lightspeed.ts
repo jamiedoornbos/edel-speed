@@ -91,6 +91,7 @@ async function fetchBatch(
     throw new Error(`Lightspeed API error (${res.status}): ${text}`);
   }
   const data = await res.json() as Record<string, unknown>;
+  console.log(`Raw lightspeed response for ${url}`, data);
   const raw = data["Item"];
   if (!raw) return [];
   // Lightspeed returns an object (not array) when count === 1.
@@ -111,6 +112,36 @@ export async function searchByCustomSku(
       results.set(item.customSku, item);
     }
   }
+  return results;
+}
+
+// Fetch all manufacturers and return a manufacturerID → name map, following next-page cursors.
+export async function fetchManufacturers(
+  accessToken: string,
+  accountId: string
+): Promise<Map<string, string>> {
+  const results = new Map<string, string>();
+  let url: string | null = `${API_BASE}/Account/${accountId}/Manufacturer.json`;
+
+  while (url) {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Manufacturer fetch failed (${res.status}): ${text}`);
+    }
+    const data = await res.json() as Record<string, unknown>;
+    const raw = data["Manufacturer"];
+    if (!raw) break;
+    const page = (Array.isArray(raw) ? raw : [raw]) as Array<{ manufacturerID: string; name: string }>;
+    for (const m of page) {
+      results.set(m.manufacturerID, m.name);
+    }
+    const attrs = data["@attributes"] as Record<string, string> | undefined;
+    url = attrs?.next || null;
+  }
+
   return results;
 }
 
@@ -151,7 +182,7 @@ export function slugify(s: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")  // strip combining diacritics
-    .replace(/[^\w\s]/g, "")           // remove punctuation
+    .replace(/[^\w\s-]/g, "")          // remove punctuation (preserve hyphens)
     .trim()
     .replace(/\s+/g, "-")              // spaces to hyphens
     .replace(/-{2,}/g, "-");           // collapse multiple hyphens
@@ -170,7 +201,8 @@ export function authorToTags(author: string): string[] {
 export function buildLightspeedUpdate(
   item: EdelweissItem,
   lsItem: LightspeedItem,
-  vendorMap: Map<string, string>
+  vendorMap: Map<string, string>,
+  manufacturerMap: Map<string, string>
 ): LightspeedUpdate {
   const authorTags = authorToTags(item.author);
   const rawTag = lsItem.Tags?.tag;
@@ -178,6 +210,7 @@ export function buildLightspeedUpdate(
 
   const lsCost = parseFloat(lsItem.defaultCost ?? "0");
   const lsVendorName = vendorMap.get(lsItem.defaultVendorID ?? "") ?? "";
+  const lsManufacturerName = manufacturerMap.get(lsItem.manufacturerID ?? "") ?? "";
 
   return {
     edelweiss: item,
@@ -186,9 +219,10 @@ export function buildLightspeedUpdate(
     lsTags,
     lsCost,
     lsVendorName,
+    lsManufacturerName,
     costDiffers: Math.abs(item.cost - lsCost) > 0.001,
     vendorDiffers: item.vendor.toLowerCase() !== lsVendorName.toLowerCase(),
-    brandDiffers: false, // TODO: brand field not yet identified in LS API
+    brandDiffers: item.brand !== "" && item.brand.toLowerCase() !== lsManufacturerName.toLowerCase(),
     tagsDiffer: !authorTags.every((tag) => lsTags.includes(tag)),
   };
 }
