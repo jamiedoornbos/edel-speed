@@ -29,10 +29,25 @@ export interface LightspeedConfig {
   refreshToken: string;
 }
 
-// Fields we're confident about; treat the rest as unknown until verified against a live response.
 export interface LightspeedItem {
   itemID: string;
   description: string;
   customSku: string;
+  defaultCost: string;
+  defaultVendorID: string;
+  Tags?: { tag: string | string[] };
   [key: string]: unknown;
+}
+
+export interface LightspeedUpdate {
+  edelweiss: EdelweissItem;
+  lsItem: LightspeedItem;
+  authorTags: string[];
+  lsTags: string[];
+  lsCost: number;
+  lsVendorName: string;
+  costDiffers: boolean;
+  vendorDiffers: boolean;
+  brandDiffers: boolean;
+  tagsDiffer: boolean;
 }

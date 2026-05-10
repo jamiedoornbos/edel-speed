@@ -1,5 +1,5 @@
 import { fetch } from "@tauri-apps/plugin-http";
-import { LightspeedItem } from "./types";
+import { EdelweissItem, LightspeedItem, LightspeedUpdate } from "./types";
 
 const TOKEN_URL = "https://cloud.lightspeedapp.com/oauth/access_token.php";
 const API_BASE = "https://api.lightspeedapp.com/API/V3";
@@ -91,10 +91,6 @@ async function fetchBatch(
     throw new Error(`Lightspeed API error (${res.status}): ${text}`);
   }
   const data = await res.json() as Record<string, unknown>;
-
-  // Log the raw response once so field names can be verified.
-  console.log("[Lightspeed] raw Item response:", data);
-
   const raw = data["Item"];
   if (!raw) return [];
   // Lightspeed returns an object (not array) when count === 1.
@@ -116,4 +112,83 @@ export async function searchByCustomSku(
     }
   }
   return results;
+}
+
+// Fetch all vendors and return a vendorID → name map, following next-page cursors.
+export async function fetchVendors(
+  accessToken: string,
+  accountId: string
+): Promise<Map<string, string>> {
+  const results = new Map<string, string>();
+  let url: string | null = `${API_BASE}/Account/${accountId}/Vendor.json`;
+
+  while (url) {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Vendor fetch failed (${res.status}): ${text}`);
+    }
+    const data = await res.json() as Record<string, unknown>;
+    const raw = data["Vendor"];
+    if (!raw) break;
+    const page = (Array.isArray(raw) ? raw : [raw]) as Array<{ vendorID: string; name: string }>;
+    for (const v of page) {
+      results.set(v.vendorID, v.name);
+    }
+    const attrs = data["@attributes"] as Record<string, string> | undefined;
+    url = attrs?.next || null;
+  }
+
+  return results;
+}
+
+// ── Tag / author utilities ──────────────────────────────────────────────────
+
+export function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")  // strip combining diacritics
+    .replace(/[^\w\s]/g, "")           // remove punctuation
+    .trim()
+    .replace(/\s+/g, "-")              // spaces to hyphens
+    .replace(/-{2,}/g, "-");           // collapse multiple hyphens
+}
+
+// "Surname, Forenames" → ["surname", "forenames"] (each slugified as one tag)
+export function authorToTags(author: string): string[] {
+  const commaIdx = author.indexOf(",");
+  if (commaIdx === -1) return [slugify(author)].filter(Boolean);
+  const surname = slugify(author.slice(0, commaIdx).trim());
+  const forenames = slugify(author.slice(commaIdx + 1).trim());
+  return [surname, forenames].filter(Boolean);
+}
+
+// Build a LightspeedUpdate by comparing an Edelweiss item against its LS counterpart.
+export function buildLightspeedUpdate(
+  item: EdelweissItem,
+  lsItem: LightspeedItem,
+  vendorMap: Map<string, string>
+): LightspeedUpdate {
+  const authorTags = authorToTags(item.author);
+  const rawTag = lsItem.Tags?.tag;
+  const lsTags = rawTag ? (Array.isArray(rawTag) ? rawTag : [rawTag]) : [];
+
+  const lsCost = parseFloat(lsItem.defaultCost ?? "0");
+  const lsVendorName = vendorMap.get(lsItem.defaultVendorID ?? "") ?? "";
+
+  return {
+    edelweiss: item,
+    lsItem,
+    authorTags,
+    lsTags,
+    lsCost,
+    lsVendorName,
+    costDiffers: Math.abs(item.cost - lsCost) > 0.001,
+    vendorDiffers: item.vendor.toLowerCase() !== lsVendorName.toLowerCase(),
+    brandDiffers: false, // TODO: brand field not yet identified in LS API
+    tagsDiffer: !authorTags.every((tag) => lsTags.includes(tag)),
+  };
 }

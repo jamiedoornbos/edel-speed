@@ -1,15 +1,27 @@
 import { useState, useEffect } from "react";
-import { Order, LightspeedConfig, LightspeedItem, EdelweissItem } from "../types";
-import { getAccessToken, searchByCustomSku } from "../lightspeed";
+import { Order, LightspeedConfig, LightspeedItem, EdelweissItem, LightspeedUpdate } from "../types";
+import { getAccessToken, searchByCustomSku, buildLightspeedUpdate } from "../lightspeed";
 
 interface Props {
   orders: Order[];
   lsConfig: LightspeedConfig;
+  vendorMap: Map<string, string>;
 }
 
 type FetchState = "idle" | "loading" | "done" | "error";
 
-const COLUMNS = (
+const UPDATE_COLUMNS = (
+  <tr>
+    <th>Title</th>
+    <th>EAN</th>
+    <th>Cost</th>
+    <th>Vendor</th>
+    <th>Brand</th>
+    <th>Tags</th>
+  </tr>
+);
+
+const ADDITION_COLUMNS = (
   <tr>
     <th>Title</th>
     <th>Author</th>
@@ -21,9 +33,27 @@ const COLUMNS = (
   </tr>
 );
 
-function ItemRow({ item }: { item: EdelweissItem }) {
+function DiffCell({ differs, old: oldVal, next }: { differs: boolean; old: string; next: string }) {
+  if (!differs) return <td>{next}</td>;
+  return <td className="cell-diff">{oldVal} → {next}</td>;
+}
+
+function UpdateRow({ u }: { u: LightspeedUpdate }) {
   return (
-    <tr key={item.ean}>
+    <tr>
+      <td>{u.edelweiss.title}</td>
+      <td className="mono">{u.edelweiss.ean}</td>
+      <DiffCell differs={u.costDiffers} old={`$${u.lsCost.toFixed(2)}`} next={`$${u.edelweiss.cost.toFixed(2)}`} />
+      <DiffCell differs={u.vendorDiffers} old={u.lsVendorName} next={u.edelweiss.vendor} />
+      <DiffCell differs={u.brandDiffers} old="" next={u.edelweiss.brand} />
+      <DiffCell differs={u.tagsDiffer} old={u.lsTags.join(", ")} next={u.authorTags.join(", ")} />
+    </tr>
+  );
+}
+
+function AdditionRow({ item }: { item: EdelweissItem }) {
+  return (
+    <tr>
       <td>{item.title}</td>
       <td>{item.author}</td>
       <td className="mono">{item.ean}</td>
@@ -35,7 +65,7 @@ function ItemRow({ item }: { item: EdelweissItem }) {
   );
 }
 
-export default function Review({ orders, lsConfig }: Props) {
+export default function Review({ orders, lsConfig, vendorMap }: Props) {
   const [lsItems, setLsItems] = useState<Map<string, LightspeedItem>>(new Map());
   const [fetchState, setFetchState] = useState<FetchState>("idle");
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -55,8 +85,8 @@ export default function Review({ orders, lsConfig }: Props) {
     (async () => {
       try {
         const accessToken = await getAccessToken(lsConfig.clientId, lsConfig.clientSecret, lsConfig.refreshToken);
-        const results = await searchByCustomSku(accessToken, lsConfig.accountId, allSkus);
-        setLsItems(results);
+        const items = await searchByCustomSku(accessToken, lsConfig.accountId, allSkus);
+        setLsItems(items);
         setFetchState("done");
       } catch (e) {
         setFetchError(e instanceof Error ? e.message : String(e));
@@ -75,7 +105,9 @@ export default function Review({ orders, lsConfig }: Props) {
   }
 
   const activeOrder = orders.find((o) => o.id === activeTab) ?? orders[0];
-  const updates = activeOrder.items.filter((item) => lsItems.has(item.ean));
+  const updates = activeOrder.items
+    .filter((item) => lsItems.has(item.ean))
+    .map((item) => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap));
   const additions = activeOrder.items.filter((item) => !lsItems.has(item.ean));
 
   return (
@@ -119,9 +151,9 @@ export default function Review({ orders, lsConfig }: Props) {
               <p className="subtitle">No existing items to update.</p>
             ) : (
               <table className="preview-table">
-                <thead>{COLUMNS}</thead>
+                <thead>{UPDATE_COLUMNS}</thead>
                 <tbody>
-                  {updates.map((item) => <ItemRow key={item.ean} item={item} />)}
+                  {updates.map((u) => <UpdateRow key={u.edelweiss.ean} u={u} />)}
                 </tbody>
               </table>
             )}
@@ -133,9 +165,9 @@ export default function Review({ orders, lsConfig }: Props) {
               <p className="subtitle">No new items to add.</p>
             ) : (
               <table className="preview-table">
-                <thead>{COLUMNS}</thead>
+                <thead>{ADDITION_COLUMNS}</thead>
                 <tbody>
-                  {additions.map((item) => <ItemRow key={item.ean} item={item} />)}
+                  {additions.map((item) => <AdditionRow key={item.ean} item={item} />)}
                 </tbody>
               </table>
             )}

@@ -8,6 +8,7 @@ import "./App.css";
 
 const MAPPINGS_KEY = "edelspeed.vendorMappings";
 const LS_CONFIG_KEY = "edelspeed.lightspeedConfig";
+const VENDOR_MAP_KEY = "edelspeed.vendorMap";
 
 const DEFAULT_MAPPINGS: VendorMapping[] = [
   { infix: "ABR", vendor: "Hachette",             brand: "Abrams"             },
@@ -62,10 +63,21 @@ function loadLsConfig(): LightspeedConfig {
   }
 }
 
+function loadVendorMap(): Map<string, string> {
+  try {
+    const stored = localStorage.getItem(VENDOR_MAP_KEY);
+    if (!stored) return new Map();
+    return new Map(Object.entries(JSON.parse(stored)));
+  } catch {
+    return new Map();
+  }
+}
+
 function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [mappings, setMappings] = useState<VendorMapping[]>(loadMappings);
   const [lsConfig, setLsConfig] = useState<LightspeedConfig>(loadLsConfig);
+  const [vendorMap, setVendorMap] = useState<Map<string, string>>(loadVendorMap);
 
   const saveMappings = (next: VendorMapping[]) => {
     setMappings(next);
@@ -75,6 +87,11 @@ function App() {
   const saveLsConfig = (next: LightspeedConfig) => {
     setLsConfig(next);
     localStorage.setItem(LS_CONFIG_KEY, JSON.stringify(next));
+  };
+
+  const saveVendorMap = (next: Map<string, string>) => {
+    setVendorMap(next);
+    localStorage.setItem(VENDOR_MAP_KEY, JSON.stringify(Object.fromEntries(next)));
   };
 
   return (
@@ -89,13 +106,15 @@ function App() {
         <main className="content">
           <Routes>
             <Route path="/" element={<Import onImport={setOrders} mappings={mappings} />} />
-            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} />} />
+            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} />} />
             <Route path="/settings" element={
               <Settings
                 mappings={mappings}
                 onMappingsChange={saveMappings}
                 lsConfig={lsConfig}
                 onLsConfigChange={saveLsConfig}
+                vendorMap={vendorMap}
+                onVendorMapChange={saveVendorMap}
               />
             } />
           </Routes>

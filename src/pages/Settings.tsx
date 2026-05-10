@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { VendorMapping, LightspeedConfig } from "../types";
-import { buildAuthorizeUrl, exchangeCode } from "../lightspeed";
+import { buildAuthorizeUrl, exchangeCode, getAccessToken, fetchVendors } from "../lightspeed";
 
 interface Props {
   mappings: VendorMapping[];
   onMappingsChange: (mappings: VendorMapping[]) => void;
   lsConfig: LightspeedConfig;
   onLsConfigChange: (config: LightspeedConfig) => void;
+  vendorMap: Map<string, string>;
+  onVendorMapChange: (map: Map<string, string>) => void;
 }
 
 type SettingsTab = "lightspeed" | "mappings";
 
-export default function Settings({ mappings, onMappingsChange, lsConfig, onLsConfigChange }: Props) {
+export default function Settings({ mappings, onMappingsChange, lsConfig, onLsConfigChange, vendorMap, onVendorMapChange }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("lightspeed");
 
   // Vendor mapping form
@@ -26,6 +28,33 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
   const [authCode, setAuthCode] = useState("");
   const [lsError, setLsError] = useState<string | null>(null);
   const [lsLoading, setLsLoading] = useState(false);
+
+  // Vendor sync modal
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncState, setSyncState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncCount, setSyncCount] = useState(0);
+
+  const handleSyncVendors = async () => {
+    setSyncOpen(true);
+    setSyncState("loading");
+    setSyncError(null);
+    try {
+      const accessToken = await getAccessToken(lsConfig.clientId, lsConfig.clientSecret, lsConfig.refreshToken);
+      const map = await fetchVendors(accessToken, lsConfig.accountId);
+      onVendorMapChange(map);
+      setSyncCount(map.size);
+      setSyncState("done");
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : String(e));
+      setSyncState("error");
+    }
+  };
+
+  const closeSyncModal = () => {
+    setSyncOpen(false);
+    setSyncState("idle");
+  };
 
   const isConnected = !!lsConfig.refreshToken;
   const canConnect = clientId.trim() && clientSecret.trim();
@@ -110,8 +139,14 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
 
           {isConnected ? (
             <div className="ls-status connected">
-              <span>✓ Connected</span>
-              <button className="btn-disconnect" onClick={disconnect}>Disconnect</button>
+              <div className="ls-status-row">
+                <span>✓ Connected</span>
+                <button className="btn-disconnect" onClick={disconnect}>Disconnect</button>
+              </div>
+              <div className="ls-status-row">
+                <span className="vendor-cache-count">{vendorMap.size} vendors cached</span>
+                <button className="primary" onClick={handleSyncVendors}>Sync Vendor List</button>
+              </div>
             </div>
           ) : (
             <div className="ls-connect">
@@ -197,6 +232,19 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
             <button className="primary" onClick={addMapping}>Add</button>
           </div>
         </section>
+      )}
+      {syncOpen && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Sync Vendor List</h2>
+            {syncState === "loading" && <p>Downloading vendors…</p>}
+            {syncState === "done" && <p className="status-ok">✓ {syncCount} vendors synced.</p>}
+            {syncState === "error" && <p className="error">{syncError}</p>}
+            {syncState !== "loading" && (
+              <button className="primary" onClick={closeSyncModal}>Close</button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

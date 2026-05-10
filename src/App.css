@@ -371,8 +371,8 @@ button.primary:hover {
 
 .ls-status {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
   max-width: 420px;
   font-size: 14px;
 }
@@ -380,6 +380,13 @@ button.primary:hover {
 .ls-status.connected {
   color: #16a34a;
   font-weight: 600;
+}
+
+.ls-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .btn-disconnect {
@@ -428,6 +435,43 @@ button.primary:hover {
 
 .ls-found   { color: #16a34a; font-weight: 600; }
 .ls-missing { color: #dc2626; }
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 8px;
+  padding: 32px;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.vendor-cache-count {
+  font-size: 13px;
+  color: #666;
+}
+
+/* Diff highlight */
+.cell-diff {
+  background: #fef9c3;
+}
 
 /* Error */
 .error {
