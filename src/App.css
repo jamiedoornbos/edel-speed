@@ -200,6 +200,23 @@ button.primary:hover {
   background: #6d28d9;
 }
 
+button.secondary {
+  background: transparent;
+  color: #7c3aed;
+  border: 1px solid #7c3aed;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+button.secondary:hover {
+  background: #7c3aed;
+  color: #fff;
+}
+
 /* Compact drop zone (files already loaded) */
 .drop-zone.compact {
   padding: 16px 24px;
@@ -218,6 +235,12 @@ button.primary:hover {
   align-items: flex-end;
   border-bottom: 2px solid #e5e7eb;
   margin-bottom: 16px;
+}
+
+.button-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .tab-bar {

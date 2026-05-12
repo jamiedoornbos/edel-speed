@@ -34,11 +34,12 @@ export default function Import({ orders, onImport, mappings }: Props) {
   const navigate = useNavigate();
 
   const parseFile = useCallback(
-    (text: string, filename: string) => {
+    (text: string, filename: string): Order | null => {
       const id = extractOrderId(filename);
       const infix = extractInfix(id);
       const mapping = mappings.find((m) => m.infix === infix);
 
+      let result: Order | null = null;
       Papa.parse(text, {
         header: true,
         skipEmptyLines: true,
@@ -56,21 +57,28 @@ export default function Import({ orders, onImport, mappings }: Props) {
               cost: parseFloat(row["Cost"]) || 0,
             }))
             .filter((item) => item.ean !== "");
-
-          const order: Order = { id, infix, filename, items };
-          const idx = orders.findIndex((o) => o.id === id);
-          const next = idx >= 0
-            ? orders.map((o, i) => i === idx ? order : o)
-            : [...orders, order];
-          onImport(next);
-          setActiveTab(id);
+          result = { id, infix, filename, items };
         },
         error: () => {
           setError(`Failed to parse ${filename}.`);
         },
       });
+      return result;
     },
-    [mappings, orders, onImport]
+    [mappings]
+  );
+
+  const mergeOrders = useCallback(
+    (base: Order[], incoming: Order[]): Order[] => {
+      const merged = [...base];
+      for (const order of incoming) {
+        const idx = merged.findIndex((o) => o.id === order.id);
+        if (idx >= 0) merged[idx] = order;
+        else merged.push(order);
+      }
+      return merged;
+    },
+    []
   );
 
   useEffect(() => {
@@ -82,14 +90,21 @@ export default function Import({ orders, onImport, mappings }: Props) {
         setError("Please drop CSV files.");
         return;
       }
+      const incoming: Order[] = [];
       for (const path of csvPaths) {
         try {
           const text = await readTextFile(path);
           const name = path.split("/").pop() ?? path;
-          parseFile(text, name);
+          const order = parseFile(text, name);
+          if (order) incoming.push(order);
         } catch {
           setError("Could not read one or more files.");
         }
+      }
+      if (incoming.length > 0) {
+        const next = mergeOrders(orders, incoming);
+        onImport(next);
+        onTabChange(incoming[incoming.length - 1].id);
       }
     });
 
@@ -101,22 +116,35 @@ export default function Import({ orders, onImport, mappings }: Props) {
       unlistenEnter.then((f) => f());
       unlistenLeave.then((f) => f());
     };
-  }, [parseFile]);
+  }, [parseFile, mergeOrders, orders, onImport]);
 
   const onFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      const incoming: Order[] = [];
       Array.from(e.target.files ?? []).forEach((file) => {
         const reader = new FileReader();
-        reader.onload = (ev) => parseFile(ev.target?.result as string, file.name);
+        reader.onload = (ev) => {
+          const order = parseFile(ev.target?.result as string, file.name);
+          if (order) incoming.push(order);
+          if (incoming.length === e.target.files!.length) {
+            const next = mergeOrders(orders, incoming);
+            onImport(next);
+          }
+        };
         reader.readAsText(file);
       });
       e.target.value = "";
     },
-    [parseFile]
+    [parseFile, mergeOrders, orders, onImport]
   );
 
   const handleProceed = () => {
     navigate("/review");
+  };
+
+  const handleClear = () => {
+    onImport([]);
+    onTabChange(null);
   };
 
   const activeOrder = orders.find((o) => o.id === activeTab);
@@ -169,9 +197,14 @@ export default function Import({ orders, onImport, mappings }: Props) {
                 </button>
               ))}
             </div>
-            <button className="primary" onClick={handleProceed}>
-              Proceed to Review →
-            </button>
+            <div className="button-group">
+              <button className="secondary" onClick={handleClear}>
+                Clear
+              </button>
+              <button className="primary" onClick={handleProceed}>
+                Review →
+              </button>
+            </div>
           </div>
 
           {activeOrder && (
