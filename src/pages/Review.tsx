@@ -166,7 +166,7 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
                   <thead>{UPDATE_COLUMNS}</thead>
                   <tbody>
                     {updates
-                      .filter((u) => showUnchanged || u.costDiffers || u.vendorDiffers || u.brandDiffers || u.tagsDiffer)
+                      .filter((u) => showUnchanged || u.changed)
                       .map((u) => <UpdateRow key={u.edelweiss.ean} u={u} />)}
                   </tbody>
                 </table>

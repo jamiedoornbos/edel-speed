@@ -228,5 +228,6 @@ export function buildLightspeedUpdate(
     vendorDiffers: item.vendor.toLowerCase() !== lsVendorName.toLowerCase(),
     brandDiffers: item.brand !== "" && item.brand.toLowerCase() !== lsManufacturerName.toLowerCase(),
     tagsDiffer: !authorTags.every((tag) => lsTags.includes(tag)),
+    get changed() { return this.costDiffers || this.vendorDiffers || this.brandDiffers || this.tagsDiffer; },
   };
 }

@@ -52,4 +52,5 @@ export interface LightspeedUpdate {
   vendorDiffers: boolean;
   brandDiffers: boolean;
   tagsDiffer: boolean;
+  changed: boolean;
 }
