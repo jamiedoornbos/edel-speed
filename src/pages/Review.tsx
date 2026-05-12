@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Order, LightspeedConfig, LightspeedItem, EdelweissItem, LightspeedUpdate } from "../types";
-import { getAccessToken, searchByCustomSku, buildLightspeedUpdate } from "../lightspeed";
+import { buildLightspeedUpdate } from "../lightspeed";
+
+type FetchState = "idle" | "loading" | "done" | "error";
 
 interface Props {
   orders: Order[];
@@ -9,9 +11,10 @@ interface Props {
   manufacturerMap: Map<string, string>;
   activeTab: string | null;
   onTabChange: (id: string | null) => void;
+  lsItems: Map<string, LightspeedItem>;
+  fetchState: FetchState;
+  fetchError: string | null;
 }
-
-type FetchState = "idle" | "loading" | "done" | "error";
 
 const UPDATE_COLUMNS = (
   <tr>
@@ -68,54 +71,48 @@ function AdditionRow({ item }: { item: EdelweissItem }) {
   );
 }
 
-export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, activeTab, onTabChange }: Props) {
-  const [lsItems, setLsItems] = useState<Map<string, LightspeedItem>>(new Map());
-  const [fetchState, setFetchState] = useState<FetchState>("idle");
-  const [fetchError, setFetchError] = useState<string | null>(null);
+export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, activeTab, onTabChange, lsItems, fetchState, fetchError }: Props) {
   const [showUnchanged, setShowUnchanged] = useState(false);
 
   const isConfigured = !!(lsConfig.refreshToken && lsConfig.clientId && lsConfig.clientSecret && lsConfig.accountId);
 
-  useEffect(() => {
-    if (orders.length === 0 || !isConfigured) return;
-
-    const allSkus = [...new Set(orders.flatMap((o) => o.items.map((i) => i.ean)))];
-    if (allSkus.length === 0) return;
-
-    setFetchState("loading");
-    setFetchError(null);
-
-    (async () => {
-      try {
-        const accessToken = await getAccessToken(lsConfig.clientId, lsConfig.clientSecret, lsConfig.refreshToken);
-        const items = await searchByCustomSku(accessToken, lsConfig.accountId, allSkus);
-        setLsItems(items);
-        setFetchState("done");
-      } catch (e) {
-        setFetchError(e instanceof Error ? e.message : String(e));
-        setFetchState("error");
-      }
-    })();
-  }, [orders, lsConfig, isConfigured]);
-
   if (orders.length === 0) {
     return (
       <div className="page">
-        <h1>Review</h1>
+        <h1>Review Updates</h1>
         <p className="subtitle">No orders loaded. Go back to Import first.</p>
       </div>
     );
   }
 
+  if (fetchState !== "done") {
+    return (
+      <div className="page">
+        <h1>Review Updates</h1>
+        {fetchState === "error"
+          ? <p className="error">{fetchError ?? "Lightspeed error"}</p>
+          : <p className="subtitle">{isConfigured ? "Checking Lightspeed…" : "Lightspeed not configured — go to Settings."}</p>}
+      </div>
+    );
+  }
+
   const activeOrder = orders.find((o) => o.id === activeTab) ?? orders[0];
-  const updates = activeOrder.items
-    .filter((item) => lsItems.has(item.ean))
-    .map((item) => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap));
-  const additions = activeOrder.items.filter((item) => !lsItems.has(item.ean));
+
+  const updatesByOrder = new Map(orders.map((order) => [
+    order.id,
+    order.items
+      .filter((item) => lsItems.has(item.ean))
+      .map((item) => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap)),
+  ]));
+
+  const additionsByOrder = new Map(orders.map((order) => [
+    order.id,
+    order.items.filter((item) => !lsItems.has(item.ean)),
+  ]));
 
   return (
     <div className="page">
-      <h1>Review</h1>
+      <h1>Review Updates</h1>
 
       <div className="orders-header">
         <div className="tab-bar">
@@ -126,69 +123,56 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
               onClick={() => onTabChange(order.id)}
             >
               {order.id}
-              <span className="tab-count">{order.items.length}</span>
+              <span className="tab-count">
+                {(updatesByOrder.get(order.id) ?? []).filter((u) => u.changed).length +
+                  (additionsByOrder.get(order.id) ?? []).length} / {order.items.length}
+              </span>
             </button>
           ))}
         </div>
         <div className="fetch-status">
-          {fetchState === "loading" && <span className="status-loading">Fetching Lightspeed records…</span>}
-          {fetchState === "done" && <span className="status-ok">✓ {lsItems.size} records found</span>}
-          {fetchState === "error" && <span className="status-error">Lightspeed error</span>}
-          {!isConfigured && <span className="status-warn">Lightspeed not configured — go to Settings</span>}
+          <span className="status-ok">✓ {lsItems.size} records found</span>
         </div>
       </div>
 
-      {fetchState === "error" && fetchError && <p className="error">{fetchError}</p>}
+      <section className="review-section">
+        {(updatesByOrder.get(activeOrder.id) ?? []).length === 0 ? (
+          <p className="subtitle">No existing items to update.</p>
+        ) : (
+          <>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={showUnchanged}
+                onChange={(e) => setShowUnchanged(e.target.checked)}
+              />
+              Show unchanged rows
+            </label>
+            <table className="preview-table">
+              <thead>{UPDATE_COLUMNS}</thead>
+              <tbody>
+                {(updatesByOrder.get(activeOrder.id) ?? [])
+                  .filter((u) => showUnchanged || u.changed)
+                  .map((u) => <UpdateRow key={u.edelweiss.ean} u={u} />)}
+              </tbody>
+            </table>
+          </>
+        )}
+      </section>
 
-      {(fetchState === "idle" || fetchState === "loading") && (
-        <p className="subtitle">
-          {isConfigured ? "Checking Lightspeed…" : "Configure Lightspeed in Settings to continue."}
-        </p>
-      )}
-
-      {fetchState === "done" && (
-        <>
-          <section className="review-section">
-            <h2>Updates <span className="section-count">{updates.length}</span></h2>
-            {updates.length === 0 ? (
-              <p className="subtitle">No existing items to update.</p>
-            ) : (
-              <>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={showUnchanged}
-                    onChange={(e) => setShowUnchanged(e.target.checked)}
-                  />
-                  Show unchanged rows
-                </label>
-                <table className="preview-table">
-                  <thead>{UPDATE_COLUMNS}</thead>
-                  <tbody>
-                    {updates
-                      .filter((u) => showUnchanged || u.changed)
-                      .map((u) => <UpdateRow key={u.edelweiss.ean} u={u} />)}
-                  </tbody>
-                </table>
-              </>
-            )}
-          </section>
-
-          <section className="review-section">
-            <h2>Additions <span className="section-count">{additions.length}</span></h2>
-            {additions.length === 0 ? (
-              <p className="subtitle">No new items to add.</p>
-            ) : (
-              <table className="preview-table">
-                <thead>{ADDITION_COLUMNS}</thead>
-                <tbody>
-                  {additions.map((item) => <AdditionRow key={item.ean} item={item} />)}
-                </tbody>
-              </table>
-            )}
-          </section>
-        </>
-      )}
+      <section className="review-section">
+        <h2>Additions <span className="section-count">{(additionsByOrder.get(activeOrder.id) ?? []).length}</span></h2>
+        {(additionsByOrder.get(activeOrder.id) ?? []).length === 0 ? (
+          <p className="subtitle">No new items to add.</p>
+        ) : (
+          <table className="preview-table">
+            <thead>{ADDITION_COLUMNS}</thead>
+            <tbody>
+              {(additionsByOrder.get(activeOrder.id) ?? []).map((item) => <AdditionRow key={item.ean} item={item} />)}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }

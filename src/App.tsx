@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import Import from "./pages/Import";
 import Review from "./pages/Review";
 import Settings from "./pages/Settings";
-import { Order, VendorMapping, LightspeedConfig } from "./types";
+import { Order, VendorMapping, LightspeedConfig, LightspeedItem } from "./types";
+import { getAccessToken, searchByCustomSku } from "./lightspeed";
 import "./App.css";
+
+type FetchState = "idle" | "loading" | "done" | "error";
 
 const MAPPINGS_KEY = "edelspeed.vendorMappings";
 const LS_CONFIG_KEY = "edelspeed.lightspeedConfig";
@@ -87,10 +90,35 @@ function loadManufacturerMap(): Map<string, string> {
 function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [lsItems, setLsItems] = useState<Map<string, LightspeedItem>>(new Map());
+  const [fetchState, setFetchState] = useState<FetchState>("idle");
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [mappings, setMappings] = useState<VendorMapping[]>(loadMappings);
   const [lsConfig, setLsConfig] = useState<LightspeedConfig>(loadLsConfig);
   const [vendorMap, setVendorMap] = useState<Map<string, string>>(loadVendorMap);
   const [manufacturerMap, setManufacturerMap] = useState<Map<string, string>>(loadManufacturerMap);
+
+  const isConfigured = !!(lsConfig.refreshToken && lsConfig.clientId && lsConfig.clientSecret && lsConfig.accountId);
+
+  useEffect(() => {
+    if (orders.length === 0 || !isConfigured) return;
+    const allSkus = [...new Set(orders.flatMap((o) => o.items.map((i) => i.ean)))];
+    if (allSkus.length === 0) return;
+
+    setFetchState("loading");
+    setFetchError(null);
+    (async () => {
+      try {
+        const accessToken = await getAccessToken(lsConfig.clientId, lsConfig.clientSecret, lsConfig.refreshToken);
+        const items = await searchByCustomSku(accessToken, lsConfig.accountId, allSkus);
+        setLsItems(items);
+        setFetchState("done");
+      } catch (e) {
+        setFetchError(e instanceof Error ? e.message : String(e));
+        setFetchState("error");
+      }
+    })();
+  }, [orders, lsConfig, isConfigured]);
 
   const saveMappings = (next: VendorMapping[]) => {
     setMappings(next);
@@ -124,7 +152,7 @@ function App() {
         <main className="content">
           <Routes>
             <Route path="/" element={<Import orders={orders} onImport={setOrders} mappings={mappings} activeTab={activeTab} onTabChange={setActiveTab} />} />
-            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} activeTab={activeTab} onTabChange={setActiveTab} />} />
+            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} activeTab={activeTab} onTabChange={setActiveTab} lsItems={lsItems} fetchState={fetchState} fetchError={fetchError} />} />
             <Route path="/settings" element={
               <Settings
                 mappings={mappings}
