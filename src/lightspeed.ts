@@ -180,19 +180,23 @@ export async function fetchVendors(
 export function slugify(s: string): string {
   return s
     .toLowerCase()
+    .replace(/[øØ]/g, "o")            // ø/Ø → o (doesn't decompose under NFD)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")  // strip combining diacritics
-    .replace(/[^\w\s-]/g, "")          // remove punctuation (preserve hyphens)
+    .replace(/[^\w\s-]/g, "")         // remove punctuation (preserve hyphens)
     .trim()
-    .replace(/\s+/g, "-")              // spaces to hyphens
-    .replace(/-{2,}/g, "-");           // collapse multiple hyphens
+    .replace(/\s+/g, "");             // drop spaces
 }
 
 // "Surname, Forenames" → ["surname", "forenames"] (each slugified as one tag)
+// "Multi Word Surname, Forenames" → ["surname", "forenames"] (each slugified as one tag)
+// "Non Name Author" → ["nonnameauthor"] (slugified as one tag)
 export function authorToTags(author: string): string[] {
   const commaIdx = author.indexOf(",");
   if (commaIdx === -1) return [slugify(author)].filter(Boolean);
-  const surname = slugify(author.slice(0, commaIdx).trim());
+  const surnameRaw = author.slice(0, commaIdx).trim();
+  const lastWord = surnameRaw.split(/\s+/).pop() ?? surnameRaw;
+  const surname = slugify(lastWord);
   const forenames = slugify(author.slice(commaIdx + 1).trim());
   return [surname, forenames].filter(Boolean);
 }
