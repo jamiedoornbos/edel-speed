@@ -86,6 +86,7 @@ function loadManufacturerMap(): Map<string, string> {
 
 function App() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [mappings, setMappings] = useState<VendorMapping[]>(loadMappings);
   const [lsConfig, setLsConfig] = useState<LightspeedConfig>(loadLsConfig);
   const [vendorMap, setVendorMap] = useState<Map<string, string>>(loadVendorMap);
@@ -122,8 +123,8 @@ function App() {
         </nav>
         <main className="content">
           <Routes>
-            <Route path="/" element={<Import orders={orders} onImport={setOrders} mappings={mappings} />} />
-            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} />} />
+            <Route path="/" element={<Import orders={orders} onImport={setOrders} mappings={mappings} activeTab={activeTab} onTabChange={setActiveTab} />} />
+            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} activeTab={activeTab} onTabChange={setActiveTab} />} />
             <Route path="/settings" element={
               <Settings
                 mappings={mappings}

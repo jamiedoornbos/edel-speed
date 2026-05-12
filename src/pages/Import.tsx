@@ -9,6 +9,8 @@ interface Props {
   orders: Order[];
   onImport: (orders: Order[]) => void;
   mappings: VendorMapping[];
+  activeTab: string | null;
+  onTabChange: (id: string | null) => void;
 }
 
 interface DragDropPayload {
@@ -27,9 +29,8 @@ function extractInfix(orderId: string): string {
   return match ? match[1].toUpperCase() : "";
 }
 
-export default function Import({ orders, onImport, mappings }: Props) {
+export default function Import({ orders, onImport, mappings, activeTab, onTabChange }: Props) {
   const [dragging, setDragging] = useState(false);
-  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -129,6 +130,7 @@ export default function Import({ orders, onImport, mappings }: Props) {
           if (incoming.length === e.target.files!.length) {
             const next = mergeOrders(orders, incoming);
             onImport(next);
+            onTabChange(incoming[incoming.length - 1].id);
           }
         };
         reader.readAsText(file);
@@ -190,7 +192,7 @@ export default function Import({ orders, onImport, mappings }: Props) {
                 <button
                   key={order.id}
                   className={`tab ${order.id === activeTab ? "active" : ""}`}
-                  onClick={() => setActiveTab(order.id)}
+                  onClick={() => onTabChange(order.id)}
                 >
                   {order.id}
                   <span className="tab-count">{order.items.length}</span>

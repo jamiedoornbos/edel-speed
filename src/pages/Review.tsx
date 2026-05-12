@@ -7,6 +7,8 @@ interface Props {
   lsConfig: LightspeedConfig;
   vendorMap: Map<string, string>;
   manufacturerMap: Map<string, string>;
+  activeTab: string | null;
+  onTabChange: (id: string | null) => void;
 }
 
 type FetchState = "idle" | "loading" | "done" | "error";
@@ -66,11 +68,10 @@ function AdditionRow({ item }: { item: EdelweissItem }) {
   );
 }
 
-export default function Review({ orders, lsConfig, vendorMap, manufacturerMap }: Props) {
+export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, activeTab, onTabChange }: Props) {
   const [lsItems, setLsItems] = useState<Map<string, LightspeedItem>>(new Map());
   const [fetchState, setFetchState] = useState<FetchState>("idle");
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string | null>(orders[0]?.id ?? null);
   const [showUnchanged, setShowUnchanged] = useState(false);
 
   const isConfigured = !!(lsConfig.refreshToken && lsConfig.clientId && lsConfig.clientSecret && lsConfig.accountId);
@@ -122,7 +123,7 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap }:
             <button
               key={order.id}
               className={`tab ${order.id === activeTab ? "active" : ""}`}
-              onClick={() => setActiveTab(order.id)}
+              onClick={() => onTabChange(order.id)}
             >
               {order.id}
               <span className="tab-count">{order.items.length}</span>
