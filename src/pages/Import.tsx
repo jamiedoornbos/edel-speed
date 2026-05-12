@@ -6,6 +6,7 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { EdelweissItem, Order, VendorMapping } from "../types";
 
 interface Props {
+  orders: Order[];
   onImport: (orders: Order[]) => void;
   mappings: VendorMapping[];
 }
@@ -26,9 +27,8 @@ function extractInfix(orderId: string): string {
   return match ? match[1].toUpperCase() : "";
 }
 
-export default function Import({ onImport, mappings }: Props) {
+export default function Import({ orders, onImport, mappings }: Props) {
   const [dragging, setDragging] = useState(false);
-  const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -58,15 +58,11 @@ export default function Import({ onImport, mappings }: Props) {
             .filter((item) => item.ean !== "");
 
           const order: Order = { id, infix, filename, items };
-          setOrders((prev) => {
-            const idx = prev.findIndex((o) => o.id === id);
-            if (idx >= 0) {
-              const updated = [...prev];
-              updated[idx] = order;
-              return updated;
-            }
-            return [...prev, order];
-          });
+          const idx = orders.findIndex((o) => o.id === id);
+          const next = idx >= 0
+            ? orders.map((o, i) => i === idx ? order : o)
+            : [...orders, order];
+          onImport(next);
           setActiveTab(id);
         },
         error: () => {
@@ -74,7 +70,7 @@ export default function Import({ onImport, mappings }: Props) {
         },
       });
     },
-    [mappings]
+    [mappings, orders, onImport]
   );
 
   useEffect(() => {
@@ -120,7 +116,6 @@ export default function Import({ onImport, mappings }: Props) {
   );
 
   const handleProceed = () => {
-    onImport(orders);
     navigate("/review");
   };
 

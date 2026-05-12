@@ -122,7 +122,7 @@ function App() {
         </nav>
         <main className="content">
           <Routes>
-            <Route path="/" element={<Import onImport={setOrders} mappings={mappings} />} />
+            <Route path="/" element={<Import orders={orders} onImport={setOrders} mappings={mappings} />} />
             <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} />} />
             <Route path="/settings" element={
               <Settings
