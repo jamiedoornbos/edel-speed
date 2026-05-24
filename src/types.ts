@@ -54,3 +54,16 @@ export interface LightspeedUpdate {
   tagsDiffer: boolean;
   changed: boolean;
 }
+
+export type UploadStatus = "pending" | "uploading" | "done" | "error";
+
+export interface UploadResult {
+  ean: string;
+  title: string;
+  itemID: string;
+  status: UploadStatus;
+  fieldsChanged: string[];
+  tagsAdded: string[];
+  tagsRemoved: string[];
+  error?: string;
+}

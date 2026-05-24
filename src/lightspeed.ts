@@ -177,6 +177,10 @@ export async function fetchVendors(
 
 // ── Tag / author utilities ──────────────────────────────────────────────────
 
+export function isCuratedTag(tag: string): boolean {
+  return tag.startsWith("bestseller");
+}
+
 export function slugify(s: string): string {
   return s
     .toLowerCase()
@@ -200,6 +204,141 @@ export function authorToTags(author: string): string[] {
   const forenames = slugify(author.slice(commaIdx + 1).trim());
   return [surname, forenames].filter(Boolean);
 }
+
+// ── Upload ─────────────────────────────────────────────────────────────────
+
+// Look up global tag IDs by name, one request per name.
+// Used so tag PUTs can reference tags by ID rather than name — sending {name: "..."}
+// causes LS to create a new global tag even if one with that name already exists,
+// resulting in duplicate item-tag associations.
+async function fetchTagIdsByName(
+  accessToken: string,
+  accountId: string,
+  names: string[]
+): Promise<Map<string, string>> {
+  if (names.length === 0) return new Map();
+  const result = new Map<string, string>();
+  for (const name of names) {
+    const url = `${API_BASE}/Account/${accountId}/Tag.json?name=${encodeURIComponent(name)}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Tag lookup for "${name}" failed (${res.status}): ${text}`);
+    }
+    const data = await res.json() as Record<string, unknown>;
+    const raw = data["Tag"];
+    if (!raw) continue; // tag doesn't exist globally yet
+    const tags = (Array.isArray(raw) ? raw : [raw]) as Array<Record<string, string>>;
+    for (const t of tags) {
+      const tagName = (t.name ?? t.tag) as string | undefined;
+      if (tagName === name) result.set(name, t.tagID);
+    }
+  }
+  return result;
+}
+
+export interface ItemUploadResult {
+  fieldsChanged: string[];
+  tagsAdded: string[];
+  tagsRemoved: string[];
+  error?: string;
+}
+
+// Upload one changed item to Lightspeed via a single Item PUT.
+// All four fields (cost, vendor, brand, tags) go in the same request.
+// Tags are sent as the full desired set — LS replaces the existing list on PUT.
+// reverseVendorMap: lowercase vendor name → vendorID
+// reverseManufacturerMap: lowercase manufacturer name → manufacturerID
+export async function uploadSingleItem(
+  accessToken: string,
+  accountId: string,
+  update: LightspeedUpdate,
+  reverseVendorMap: Map<string, string>,
+  reverseManufacturerMap: Map<string, string>,
+): Promise<ItemUploadResult> {
+  const { lsItem, edelweiss, costDiffers, vendorDiffers, brandDiffers, tagsDiffer, authorTags, lsTags } = update;
+  const itemID = lsItem.itemID;
+  const fieldsChanged: string[] = [];
+  const tagsAdded: string[] = [];
+  const tagsRemoved: string[] = [];
+
+  // ── Scalar fields PUT ──────────────────────────────────────────────────────
+  const scalarPayload: Record<string, string> = {};
+
+  if (costDiffers) {
+    scalarPayload.defaultCost = edelweiss.cost.toFixed(2);
+    fieldsChanged.push("cost");
+  }
+  if (vendorDiffers) {
+    const vendorID = reverseVendorMap.get(edelweiss.vendor.toLowerCase());
+    if (vendorID) {
+      scalarPayload.defaultVendorID = vendorID;
+      fieldsChanged.push("vendor");
+    }
+  }
+  if (brandDiffers) {
+    const mfrID = reverseManufacturerMap.get(edelweiss.brand.toLowerCase());
+    if (mfrID) {
+      scalarPayload.manufacturerID = mfrID;
+      fieldsChanged.push("brand");
+    }
+  }
+
+  if (Object.keys(scalarPayload).length > 0) {
+    const res = await fetch(`${API_BASE}/Account/${accountId}/Item/${itemID}.json`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(scalarPayload),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { fieldsChanged: [], tagsAdded: [], tagsRemoved: [], error: `PUT failed (${res.status}): ${text}` };
+    }
+  }
+
+  // ── Tags PUT (separate call) ────────────────────────────────────────────────
+  // Look up each tag's global ID first and send {tagID: ...} in the payload.
+  // Sending {name: ...} causes LS to mint a new global tag even if one already
+  // exists with that name, producing duplicate item-tag associations.
+  if (tagsDiffer) {
+    // Desired tag set: author tags + curated LS tags. Non-curated, non-author tags are removed.
+    const fullTagSet = [...new Set([...authorTags, ...lsTags.filter(isCuratedTag)])];
+
+    let tagIdMap: Map<string, string>;
+    try {
+      tagIdMap = await fetchTagIdsByName(accessToken, accountId, fullTagSet);
+    } catch (e) {
+      return { fieldsChanged, tagsAdded: [], tagsRemoved: [], error: e instanceof Error ? e.message : String(e) };
+    }
+
+    const tagItems = fullTagSet.map(t => {
+      const id = tagIdMap.get(t);
+      return id ? { tagID: id, name: t } : { name: t };
+    });
+    const tagPayload = {
+      Tags: {
+        tag: tagItems.length === 1 ? tagItems[0] : tagItems,
+      },
+    };
+    const res = await fetch(`${API_BASE}/Account/${accountId}/Item/${itemID}.json`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(tagPayload),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      // Scalar fields were already applied above — report them and the tag error separately.
+      return { fieldsChanged, tagsAdded: [], tagsRemoved: [], error: `Tags PUT failed (${res.status}): ${text}` };
+    }
+    tagsAdded.push(...authorTags.filter(t => !lsTags.includes(t)));
+    tagsRemoved.push(...lsTags.filter(t => !authorTags.includes(t) && !isCuratedTag(t)));
+    fieldsChanged.push("tags");
+  }
+
+  return { fieldsChanged, tagsAdded, tagsRemoved };
+}
+
+// ── Build update record ─────────────────────────────────────────────────────
 
 // Build a LightspeedUpdate by comparing an Edelweiss item against its LS counterpart.
 export function buildLightspeedUpdate(
@@ -227,7 +366,8 @@ export function buildLightspeedUpdate(
     costDiffers: Math.abs(item.cost - lsCost) > 0.001,
     vendorDiffers: item.vendor.toLowerCase() !== lsVendorName.toLowerCase(),
     brandDiffers: item.brand !== "" && item.brand.toLowerCase() !== lsManufacturerName.toLowerCase(),
-    tagsDiffer: !authorTags.every((tag) => lsTags.includes(tag)),
+    tagsDiffer: !authorTags.every((tag) => lsTags.includes(tag)) ||
+      lsTags.some((tag) => !authorTags.includes(tag) && !isCuratedTag(tag)),
     get changed() { return this.costDiffers || this.vendorDiffers || this.brandDiffers || this.tagsDiffer; },
   };
 }

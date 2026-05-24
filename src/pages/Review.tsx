@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Order, LightspeedConfig, LightspeedItem, EdelweissItem, LightspeedUpdate } from "../types";
 import { buildLightspeedUpdate } from "../lightspeed";
 
@@ -72,6 +73,7 @@ function AdditionRow({ item }: { item: EdelweissItem }) {
 }
 
 export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, activeTab, onTabChange, lsItems, fetchState, fetchError }: Props) {
+  const navigate = useNavigate();
   const [showUnchanged, setShowUnchanged] = useState(false);
 
   const isConfigured = !!(lsConfig.refreshToken && lsConfig.clientId && lsConfig.clientSecret && lsConfig.accountId);
@@ -173,6 +175,29 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
           </table>
         )}
       </section>
+
+      <div className="review-footer">
+        <button
+          className="primary"
+          onClick={() => {
+            const updates = orders.flatMap(order =>
+              order.items
+                .filter(item => lsItems.has(item.ean))
+                .map(item => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap))
+                .filter(u => u.changed)
+            );
+            navigate("/results", { state: { updates } });
+          }}
+        >
+          Upload to Lightspeed
+          <span className="tab-count">
+            {orders.reduce((sum, order) =>
+              sum +
+              (updatesByOrder.get(order.id) ?? []).filter((u) => u.changed).length +
+              (additionsByOrder.get(order.id) ?? []).length, 0)}
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

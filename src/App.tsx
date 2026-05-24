@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import Import from "./pages/Import";
 import Review from "./pages/Review";
+import Results from "./pages/Results";
 import Settings from "./pages/Settings";
 import { Order, VendorMapping, LightspeedConfig, LightspeedItem } from "./types";
 import { getAccessToken, searchByCustomSku } from "./lightspeed";
@@ -153,6 +154,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Import orders={orders} onImport={setOrders} mappings={mappings} activeTab={activeTab} onTabChange={setActiveTab} />} />
             <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} activeTab={activeTab} onTabChange={setActiveTab} lsItems={lsItems} fetchState={fetchState} fetchError={fetchError} />} />
+            <Route path="/results" element={<Results lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} />} />
             <Route path="/settings" element={
               <Settings
                 mappings={mappings}
