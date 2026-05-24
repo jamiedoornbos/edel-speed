@@ -23,10 +23,19 @@ function extractOrderId(filename: string): string {
   return match ? match[1] : filename.replace(/\.csv$/i, "");
 }
 
-// BLCHR526 → CHR  (skip first 2 chars, take 2–3 letters before the digits)
+// BLCHR526     → CHR  (skip 2-char prefix, take 2–3 letters before the digits)
+// SPCXXXPRH526 → PRH  (skip "SPC" + 3 unrelated letters, then take 2–3 letters before the digits)
+// FLPRHFA25    → PRH  (skip "FL", take 2–3 letters before the 2-letter season + 2-digit year)
 function extractInfix(orderId: string): string {
-  const match = orderId.match(/^[A-Z]{2}([A-Z]{2,3})\d/i);
-  return match ? match[1].toUpperCase() : "";
+  const upper = orderId.toUpperCase();
+  if (upper.startsWith("FL")) {
+    const match = upper.slice(2).match(/^([A-Z]{2,3})[A-Z]{2}\d{2}/);
+    return match ? match[1] : "";
+  }
+  const pattern = /^([A-Z]{2,3})\d/;
+  const vendorAndNumber = upper.slice(upper.startsWith("SPC") ? 6 : 2);
+  const match = vendorAndNumber.match(pattern);
+  return match ? match[1] : "";
 }
 
 export default function Import({ orders, onImport, mappings, activeTab, onTabChange }: Props) {
