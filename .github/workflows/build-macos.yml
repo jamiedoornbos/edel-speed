@@ -6,6 +6,8 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
 
     steps:
       - uses: actions/checkout@v4
@@ -18,16 +20,18 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
 
       - name: Install npm dependencies
         run: npm ci
 
       - name: Build
-        run: make build
+        run: npm run tauri build -- --target x86_64-apple-darwin
 
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
           name: edel-speed-macos
-          path: src-tauri/target/release/bundle/dmg/*.dmg
+          path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
