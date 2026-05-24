@@ -355,7 +355,7 @@ button.secondary:hover {
   display: flex;
   justify-content: flex-end;
   padding: 16px 0;
-  background: linear-gradient(transparent, #fff 30%);
+  background: linear-gradient(transparent, #f5f5f5 30%);
 }
 
 .checkbox-label {
