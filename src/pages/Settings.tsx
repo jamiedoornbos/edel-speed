@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { VendorMapping, LightspeedConfig } from "../types";
-import { buildAuthorizeUrl, exchangeCode, getAccessToken, fetchVendors, fetchManufacturers } from "../lightspeed";
+import { buildAuthorizeUrl, exchangeCode, getAccessToken, fetchVendors, fetchManufacturers, fetchCategories } from "../lightspeed";
 
 interface Props {
   mappings: VendorMapping[];
@@ -12,11 +12,13 @@ interface Props {
   onVendorMapChange: (map: Map<string, string>) => void;
   manufacturerMap: Map<string, string>;
   onManufacturerMapChange: (map: Map<string, string>) => void;
+  categoryMap: Map<string, string>;
+  onCategoryMapChange: (map: Map<string, string>) => void;
 }
 
 type SettingsTab = "lightspeed" | "mappings";
 
-export default function Settings({ mappings, onMappingsChange, lsConfig, onLsConfigChange, vendorMap, onVendorMapChange, manufacturerMap, onManufacturerMapChange }: Props) {
+export default function Settings({ mappings, onMappingsChange, lsConfig, onLsConfigChange, vendorMap, onVendorMapChange, manufacturerMap, onManufacturerMapChange, categoryMap, onCategoryMapChange }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("lightspeed");
 
   // Vendor mapping form
@@ -83,6 +85,33 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
   const closeBrandSyncModal = () => {
     setBrandSyncOpen(false);
     setBrandSyncState("idle");
+  };
+
+  // Category sync modal
+  const [categorySyncOpen, setCategorySyncOpen] = useState(false);
+  const [categorySyncState, setCategorySyncState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [categorySyncError, setCategorySyncError] = useState<string | null>(null);
+  const [categorySyncCount, setCategorySyncCount] = useState(0);
+
+  const handleSyncCategories = async () => {
+    setCategorySyncOpen(true);
+    setCategorySyncState("loading");
+    setCategorySyncError(null);
+    try {
+      const accessToken = await getAccessToken(lsConfig.clientId, lsConfig.clientSecret, lsConfig.refreshToken);
+      const map = await fetchCategories(accessToken, lsConfig.accountId);
+      onCategoryMapChange(map);
+      setCategorySyncCount(map.size);
+      setCategorySyncState("done");
+    } catch (e) {
+      setCategorySyncError(e instanceof Error ? e.message : String(e));
+      setCategorySyncState("error");
+    }
+  };
+
+  const closeCategorySyncModal = () => {
+    setCategorySyncOpen(false);
+    setCategorySyncState("idle");
   };
 
   const isConnected = !!lsConfig.refreshToken;
@@ -179,6 +208,10 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
               <div className="ls-status-row">
                 <span className="vendor-cache-count">{manufacturerMap.size} brands cached</span>
                 <button className="primary" onClick={handleSyncBrands}>Sync Brand List</button>
+              </div>
+              <div className="ls-status-row">
+                <span className="vendor-cache-count">{categoryMap.size} categories cached</span>
+                <button className="primary" onClick={handleSyncCategories}>Sync Category List</button>
               </div>
             </div>
           ) : (
@@ -288,6 +321,19 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
             {brandSyncState === "error" && <p className="error">{brandSyncError}</p>}
             {brandSyncState !== "loading" && (
               <button className="primary" onClick={closeBrandSyncModal}>Close</button>
+            )}
+          </div>
+        </div>
+      )}
+      {categorySyncOpen && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Sync Category List</h2>
+            {categorySyncState === "loading" && <p>Downloading categories…</p>}
+            {categorySyncState === "done" && <p className="status-ok">✓ {categorySyncCount} categories synced.</p>}
+            {categorySyncState === "error" && <p className="error">{categorySyncError}</p>}
+            {categorySyncState !== "loading" && (
+              <button className="primary" onClick={closeCategorySyncModal}>Close</button>
             )}
           </div>
         </div>

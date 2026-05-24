@@ -15,6 +15,7 @@ interface Props {
   lsItems: Map<string, LightspeedItem>;
   fetchState: FetchState;
   fetchError: string | null;
+  categoryMap: Map<string, string>;
 }
 
 const UPDATE_COLUMNS = (
@@ -31,6 +32,7 @@ const UPDATE_COLUMNS = (
 const ADDITION_COLUMNS = (
   <tr>
     <th>Title</th>
+    <th>Category</th>
     <th>Author</th>
     <th>EAN</th>
     <th>Vendor</th>
@@ -58,10 +60,12 @@ function UpdateRow({ u }: { u: LightspeedUpdate }) {
   );
 }
 
-function AdditionRow({ item }: { item: EdelweissItem }) {
+function AdditionRow({ item, categoryMap }: { item: EdelweissItem; categoryMap: Map<string, string> }) {
+  const categoryKnown = categoryMap.size === 0 || categoryMap.has(item.storeCategory);
   return (
     <tr>
       <td>{item.title}</td>
+      <td className={categoryKnown ? undefined : "ls-missing"}>{item.storeCategory || "—"}</td>
       <td>{item.author}</td>
       <td className="mono">{item.ean}</td>
       <td>{item.vendor}</td>
@@ -72,7 +76,7 @@ function AdditionRow({ item }: { item: EdelweissItem }) {
   );
 }
 
-export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, activeTab, onTabChange, lsItems, fetchState, fetchError }: Props) {
+export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, activeTab, onTabChange, lsItems, fetchState, fetchError, categoryMap }: Props) {
   const navigate = useNavigate();
   const [showUnchanged, setShowUnchanged] = useState(false);
 
@@ -170,7 +174,7 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
           <table className="preview-table">
             <thead>{ADDITION_COLUMNS}</thead>
             <tbody>
-              {(additionsByOrder.get(activeOrder.id) ?? []).map((item) => <AdditionRow key={item.ean} item={item} />)}
+              {(additionsByOrder.get(activeOrder.id) ?? []).map((item) => <AdditionRow key={item.ean} item={item} categoryMap={categoryMap} />)}
             </tbody>
           </table>
         )}

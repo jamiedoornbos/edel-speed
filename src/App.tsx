@@ -14,6 +14,7 @@ const MAPPINGS_KEY = "edelspeed.vendorMappings";
 const LS_CONFIG_KEY = "edelspeed.lightspeedConfig";
 const VENDOR_MAP_KEY = "edelspeed.vendorMap";
 const MANUFACTURER_MAP_KEY = "edelspeed.manufacturerMap";
+const CATEGORY_MAP_KEY = "edelspeed.categoryMap";
 
 const DEFAULT_MAPPINGS: VendorMapping[] = [
   { infix: "ABR", vendor: "Hachette",             brand: "Abrams"             },
@@ -88,6 +89,16 @@ function loadManufacturerMap(): Map<string, string> {
   }
 }
 
+function loadCategoryMap(): Map<string, string> {
+  try {
+    const stored = localStorage.getItem(CATEGORY_MAP_KEY);
+    if (!stored) return new Map();
+    return new Map(Object.entries(JSON.parse(stored)));
+  } catch {
+    return new Map();
+  }
+}
+
 function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -98,6 +109,7 @@ function App() {
   const [lsConfig, setLsConfig] = useState<LightspeedConfig>(loadLsConfig);
   const [vendorMap, setVendorMap] = useState<Map<string, string>>(loadVendorMap);
   const [manufacturerMap, setManufacturerMap] = useState<Map<string, string>>(loadManufacturerMap);
+  const [categoryMap, setCategoryMap] = useState<Map<string, string>>(loadCategoryMap);
 
   const isConfigured = !!(lsConfig.refreshToken && lsConfig.clientId && lsConfig.clientSecret && lsConfig.accountId);
 
@@ -141,6 +153,11 @@ function App() {
     localStorage.setItem(MANUFACTURER_MAP_KEY, JSON.stringify(Object.fromEntries(next)));
   };
 
+  const saveCategoryMap = (next: Map<string, string>) => {
+    setCategoryMap(next);
+    localStorage.setItem(CATEGORY_MAP_KEY, JSON.stringify(Object.fromEntries(next)));
+  };
+
   return (
     <BrowserRouter>
       <div className="layout">
@@ -153,7 +170,7 @@ function App() {
         <main className="content">
           <Routes>
             <Route path="/" element={<Import orders={orders} onImport={setOrders} mappings={mappings} activeTab={activeTab} onTabChange={setActiveTab} />} />
-            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} activeTab={activeTab} onTabChange={setActiveTab} lsItems={lsItems} fetchState={fetchState} fetchError={fetchError} />} />
+            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} activeTab={activeTab} onTabChange={setActiveTab} lsItems={lsItems} fetchState={fetchState} fetchError={fetchError} categoryMap={categoryMap} />} />
             <Route path="/results" element={<Results lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} />} />
             <Route path="/settings" element={
               <Settings
@@ -165,6 +182,8 @@ function App() {
                 onVendorMapChange={saveVendorMap}
                 manufacturerMap={manufacturerMap}
                 onManufacturerMapChange={saveManufacturerMap}
+                categoryMap={categoryMap}
+                onCategoryMapChange={saveCategoryMap}
               />
             } />
           </Routes>
