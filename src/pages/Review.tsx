@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Order, LightspeedConfig, LightspeedItem, EdelweissItem, LightspeedUpdate } from "../types";
+import { Order, LightspeedConfig, LightspeedItem, EdelweissItem, LightspeedUpdate, LightspeedAddition } from "../types";
 import { buildLightspeedUpdate } from "../lightspeed";
 
 type FetchState = "idle" | "loading" | "done" | "error";
@@ -32,7 +32,7 @@ const UPDATE_COLUMNS = (
 const ADDITION_COLUMNS = (
   <tr>
     <th>Title</th>
-    <th>Category</th>
+    <th>SubCategory</th>
     <th>Author</th>
     <th>EAN</th>
     <th>Vendor</th>
@@ -60,12 +60,95 @@ function UpdateRow({ u }: { u: LightspeedUpdate }) {
   );
 }
 
-function AdditionRow({ item, categoryMap }: { item: EdelweissItem; categoryMap: Map<string, string> }) {
-  const categoryKnown = categoryMap.size === 0 || categoryMap.has(item.storeCategory);
+function CategoryInput({ value, categoryMap, onChange }: {
+  value: string;
+  categoryMap: Map<string, string>;
+  onChange: (val: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const matches = value.length >= 2
+    ? [...categoryMap.keys()].filter((k) => k.toLowerCase().startsWith(value.toLowerCase())).sort()
+    : [];
+
+  const handleChange = (val: string) => {
+    onChange(val);
+    setSelectedIndex(0);
+    setOpen(true);
+  };
+
+  const select = (name: string) => {
+    onChange(name);
+    setOpen(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open || matches.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((i) => Math.min(i + 1, matches.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      select(matches[selectedIndex]);
+    }
+  };
+
+  return (
+    <div className="category-combobox">
+      <input
+        className="mapping-input"
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={handleKeyDown}
+      />
+      {open && matches.length > 0 && (
+        <ul className="category-suggestions">
+          {matches.map((name, i) => (
+            <li
+              key={name}
+              className={i === selectedIndex ? "active" : undefined}
+              onMouseDown={() => select(name)}
+              onMouseEnter={() => setSelectedIndex(i)}
+            >
+              {name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function AdditionRow({ item, title, storeCategory, categoryMap, onTitleChange, onCategoryChange }: {
+  item: EdelweissItem;
+  title: string;
+  storeCategory: string;
+  categoryMap: Map<string, string>;
+  onTitleChange: (val: string) => void;
+  onCategoryChange: (val: string) => void;
+}) {
+  const categoryKnown = categoryMap.size === 0 || categoryMap.has(storeCategory);
   return (
     <tr>
-      <td>{item.title}</td>
-      <td className={categoryKnown ? undefined : "ls-missing"}>{item.storeCategory || "—"}</td>
+      <td>
+        <input
+          className="mapping-input"
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+        />
+      </td>
+      <td>
+        {categoryMap.size === 0 ? (
+          <span className={categoryKnown ? undefined : "ls-missing"}>{storeCategory || "—"}</span>
+        ) : (
+          <CategoryInput value={storeCategory} categoryMap={categoryMap} onChange={onCategoryChange} />
+        )}
+      </td>
       <td>{item.author}</td>
       <td className="mono">{item.ean}</td>
       <td>{item.vendor}</td>
@@ -79,6 +162,13 @@ function AdditionRow({ item, categoryMap }: { item: EdelweissItem; categoryMap: 
 export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, activeTab, onTabChange, lsItems, fetchState, fetchError, categoryMap }: Props) {
   const navigate = useNavigate();
   const [showUnchanged, setShowUnchanged] = useState(false);
+  const [titleOverrides, setTitleOverrides] = useState<Map<string, string>>(new Map());
+  const [categoryOverrides, setCategoryOverrides] = useState<Map<string, string>>(new Map());
+
+  const setTitleOverride = (ean: string, val: string) =>
+    setTitleOverrides((prev) => new Map(prev).set(ean, val));
+  const setCategoryOverride = (ean: string, val: string) =>
+    setCategoryOverrides((prev) => new Map(prev).set(ean, val));
 
   const isConfigured = !!(lsConfig.refreshToken && lsConfig.clientId && lsConfig.clientSecret && lsConfig.accountId);
 
@@ -171,12 +261,24 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
         {(additionsByOrder.get(activeOrder.id) ?? []).length === 0 ? (
           <p className="subtitle">No new items to add.</p>
         ) : (
+          <div className="table-scroll">
           <table className="preview-table">
             <thead>{ADDITION_COLUMNS}</thead>
             <tbody>
-              {(additionsByOrder.get(activeOrder.id) ?? []).map((item) => <AdditionRow key={item.ean} item={item} categoryMap={categoryMap} />)}
+              {(additionsByOrder.get(activeOrder.id) ?? []).map((item) => (
+                <AdditionRow
+                  key={item.ean}
+                  item={item}
+                  title={titleOverrides.get(item.ean) ?? item.title}
+                  storeCategory={categoryOverrides.get(item.ean) ?? item.storeCategory}
+                  categoryMap={categoryMap}
+                  onTitleChange={(val) => setTitleOverride(item.ean, val)}
+                  onCategoryChange={(val) => setCategoryOverride(item.ean, val)}
+                />
+              ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
@@ -190,7 +292,26 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
                 .map(item => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap))
                 .filter(u => u.changed)
             );
-            navigate("/results", { state: { updates } });
+            const additions: LightspeedAddition[] = orders.flatMap(order =>
+              order.items
+                .filter(item => !lsItems.has(item.ean))
+                .map(item => {
+                  const title = titleOverrides.get(item.ean) ?? item.title;
+                  const storeCategory = categoryOverrides.get(item.ean) ?? item.storeCategory;
+                  return {
+                    title,
+                    ean: item.ean,
+                    author: item.author,
+                    vendor: item.vendor,
+                    brand: item.brand,
+                    listPrice: item.listPrice,
+                    cost: item.cost,
+                    storeCategory,
+                    categoryID: categoryMap.get(storeCategory) ?? "",
+                  };
+                })
+            );
+            navigate("/results", { state: { updates, additions } });
           }}
         >
           Upload to Lightspeed

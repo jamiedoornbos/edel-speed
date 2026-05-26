@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { LightspeedUpdate, LightspeedConfig, UploadResult } from "../types";
+import { LightspeedUpdate, LightspeedAddition, LightspeedConfig, UploadResult } from "../types";
 import { getAccessToken, uploadSingleItem } from "../lightspeed";
 
 interface Props {
@@ -41,7 +41,8 @@ function UploadResultRow({ result }: { result: UploadResult }) {
 
 export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props) {
   const { state } = useLocation();
-  const updates: LightspeedUpdate[] = (state as { updates?: LightspeedUpdate[] } | null)?.updates ?? [];
+  const updates: LightspeedUpdate[] = (state as { updates?: LightspeedUpdate[]; additions?: LightspeedAddition[] } | null)?.updates ?? [];
+  const additions: LightspeedAddition[] = (state as { updates?: LightspeedUpdate[]; additions?: LightspeedAddition[] } | null)?.additions ?? [];
 
   const [phase, setPhase] = useState<"running" | "done">("running");
   const [results, setResults] = useState<UploadResult[]>(() =>
@@ -141,6 +142,31 @@ export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props)
             {results.map(r => <UploadResultRow key={r.ean} result={r} />)}
           </tbody>
         </table>
+      )}
+      {additions.length > 0 && (
+        <section className="review-section" style={{ marginTop: 32 }}>
+          <h2>Additions <span className="section-count">{additions.length}</span></h2>
+          <table className="preview-table">
+            <thead>
+              <tr>
+                <th>EAN</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Vendor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {additions.map(a => (
+                <tr key={a.ean}>
+                  <td className="mono">{a.ean}</td>
+                  <td>{a.title}</td>
+                  <td>{a.storeCategory || "—"}</td>
+                  <td>{a.vendor}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       )}
     </div>
   );

@@ -175,6 +175,44 @@ export async function fetchVendors(
   return results;
 }
 
+const BOOK_SHOP_CATEGORY = "Book Shop";
+
+// Fetch all categories and return a name → categoryID map for subcategories of
+// BOOK_SHOP_CATEGORY only. The parent lookup and filtering happen internally.
+export async function fetchCategories(
+  accessToken: string,
+  accountId: string
+): Promise<Map<string, string>> {
+  const all: Array<{ categoryID: string; name: string; parentID: string }> = [];
+  let url: string | null = `${API_BASE}/Account/${accountId}/Category.json`;
+
+  while (url) {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Category fetch failed (${res.status}): ${text}`);
+    }
+    const data = await res.json() as Record<string, unknown>;
+    const raw = data["Category"];
+    if (!raw) break;
+    const page = (Array.isArray(raw) ? raw : [raw]) as typeof all;
+    all.push(...page);
+    const attrs = data["@attributes"] as Record<string, string> | undefined;
+    url = attrs?.next || null;
+  }
+
+  const parentID = all.find((c) => c.name === BOOK_SHOP_CATEGORY)?.categoryID;
+  const results = new Map<string, string>();
+  if (parentID) {
+    for (const c of all) {
+      if (c.parentID === parentID) results.set(c.name, c.categoryID);
+    }
+  }
+  return results;
+}
+
 // ── Tag / author utilities ──────────────────────────────────────────────────
 
 export function isCuratedTag(tag: string): boolean {

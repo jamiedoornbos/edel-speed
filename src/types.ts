@@ -55,6 +55,18 @@ export interface LightspeedUpdate {
   changed: boolean;
 }
 
+export interface LightspeedAddition {
+  title: string;
+  ean: string;
+  author: string;
+  vendor: string;
+  brand: string;
+  listPrice: number;
+  cost: number;
+  storeCategory: string;
+  categoryID: string;
+}
+
 export type UploadStatus = "pending" | "uploading" | "done" | "error";
 
 export interface UploadResult {

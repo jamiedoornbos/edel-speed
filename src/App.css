@@ -307,8 +307,11 @@ button.secondary:hover {
   padding: 7px 10px;
   font-size: 14px;
   flex: 1;
+  width: 100%;
+  min-width: 240px;
   background: #fff;
   transition: border-color 0.15s;
+  box-sizing: border-box;
 }
 
 .mapping-input:focus {
@@ -320,6 +323,40 @@ button.secondary:hover {
   flex: 0 0 70px;
   text-transform: uppercase;
   font-family: monospace;
+}
+
+.category-combobox {
+  position: relative;
+}
+
+.category-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  min-width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.category-suggestions li {
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.category-suggestions li:hover,
+.category-suggestions li.active {
+  background: #f3f0ff;
+  color: #7c3aed;
 }
 
 .btn-remove {
@@ -344,6 +381,26 @@ button.secondary:hover {
   padding: 20px;
 }
 
+.table-scroll {
+  overflow-x: scroll;
+  overflow-y: auto;
+  max-height: calc(100vh - 260px);
+}
+
+.table-scroll .preview-table {
+  width: auto;
+  min-width: 100%;
+}
+
+.table-scroll .preview-table td:first-child {
+  min-width: 480px;
+}
+
+.table-scroll .preview-table td:nth-child(3) {
+  min-width: 160px;
+  white-space: nowrap;
+}
+
 /* Review sections */
 .review-section {
   margin-bottom: 48px;
@@ -355,7 +412,7 @@ button.secondary:hover {
   display: flex;
   justify-content: flex-end;
   padding: 16px 0;
-  background: linear-gradient(transparent, #f5f5f5 30%);
+  background: #f5f5f5;
 }
 
 .checkbox-label {
