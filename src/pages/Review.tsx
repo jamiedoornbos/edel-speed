@@ -48,7 +48,11 @@ const ADDITION_COLUMNS = (
 
 function DiffCell({ differs, old: oldVal, next }: { differs: boolean; old: string; next: string }) {
   if (!differs) return <td>{next}</td>;
-  return <td className="cell-diff">{oldVal} → {next}</td>;
+  return (
+    <td className="cell-diff">
+      {oldVal} → {next}
+    </td>
+  );
 }
 
 function UpdateRow({ u }: { u: LightspeedUpdate }) {
@@ -64,7 +68,11 @@ function UpdateRow({ u }: { u: LightspeedUpdate }) {
   );
 }
 
-function CategoryInput({ value, categoryMap, onChange }: {
+function CategoryInput({
+  value,
+  categoryMap,
+  onChange,
+}: {
   value: string;
   categoryMap: Map<string, string>;
   onChange: (val: string) => void;
@@ -75,9 +83,10 @@ function CategoryInput({ value, categoryMap, onChange }: {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const valueOnFocus = useRef<string>(value);
-  const matches = value.length >= 2
-    ? [...categoryMap.keys()].filter((k) => k.toLowerCase().startsWith(value.toLowerCase())).sort()
-    : [];
+  const matches =
+    value.length >= 2
+      ? [...categoryMap.keys()].filter((k) => k.toLowerCase().startsWith(value.toLowerCase())).sort()
+      : [];
 
   const handleChange = (val: string) => {
     onChange(val);
@@ -152,7 +161,14 @@ function CategoryInput({ value, categoryMap, onChange }: {
   );
 }
 
-function AdditionRow({ item, title, storeCategory, categoryMap, onTitleChange, onCategoryChange }: {
+function AdditionRow({
+  item,
+  title,
+  storeCategory,
+  categoryMap,
+  onTitleChange,
+  onCategoryChange,
+}: {
   item: EdelweissItem;
   title: string;
   storeCategory: string;
@@ -164,11 +180,7 @@ function AdditionRow({ item, title, storeCategory, categoryMap, onTitleChange, o
   return (
     <tr>
       <td>
-        <input
-          className="mapping-input"
-          value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
-        />
+        <input className="mapping-input" value={title} onChange={(e) => onTitleChange(e.target.value)} />
       </td>
       <td>
         {categoryMap.size === 0 ? (
@@ -187,7 +199,22 @@ function AdditionRow({ item, title, storeCategory, categoryMap, onTitleChange, o
   );
 }
 
-export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, activeTab, onTabChange, lsItems, fetchState, fetchError, categoryMap, titleOverrides, onTitleOverride, categoryOverrides, onCategoryOverride }: Props) {
+export default function Review({
+  orders,
+  lsConfig,
+  vendorMap,
+  manufacturerMap,
+  activeTab,
+  onTabChange,
+  lsItems,
+  fetchState,
+  fetchError,
+  categoryMap,
+  titleOverrides,
+  onTitleOverride,
+  categoryOverrides,
+  onCategoryOverride,
+}: Props) {
   const navigate = useNavigate();
   const [showUnchanged, setShowUnchanged] = useState(false);
 
@@ -206,26 +233,31 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
     return (
       <div className="page">
         <h1>Review Updates</h1>
-        {fetchState === "error"
-          ? <p className="error">{fetchError ?? "Lightspeed error"}</p>
-          : <p className="subtitle">{isConfigured ? "Checking Lightspeed…" : "Lightspeed not configured — go to Settings."}</p>}
+        {fetchState === "error" ? (
+          <p className="error">{fetchError ?? "Lightspeed error"}</p>
+        ) : (
+          <p className="subtitle">
+            {isConfigured ? "Checking Lightspeed…" : "Lightspeed not configured — go to Settings."}
+          </p>
+        )}
       </div>
     );
   }
 
   const activeOrder = orders.find((o) => o.id === activeTab) ?? orders[0];
 
-  const updatesByOrder = new Map(orders.map((order) => [
-    order.id,
-    order.items
-      .filter((item) => lsItems.has(item.ean))
-      .map((item) => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap)),
-  ]));
+  const updatesByOrder = new Map(
+    orders.map((order) => [
+      order.id,
+      order.items
+        .filter((item) => lsItems.has(item.ean))
+        .map((item) => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap)),
+    ])
+  );
 
-  const additionsByOrder = new Map(orders.map((order) => [
-    order.id,
-    order.items.filter((item) => !lsItems.has(item.ean)),
-  ]));
+  const additionsByOrder = new Map(
+    orders.map((order) => [order.id, order.items.filter((item) => !lsItems.has(item.ean))])
+  );
 
   return (
     <div className="page">
@@ -242,7 +274,8 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
               {order.id}
               <span className="tab-count">
                 {(updatesByOrder.get(order.id) ?? []).filter((u) => u.changed).length +
-                  (additionsByOrder.get(order.id) ?? []).length} / {order.items.length}
+                  (additionsByOrder.get(order.id) ?? []).length}{" "}
+                / {order.items.length}
               </span>
             </button>
           ))}
@@ -258,11 +291,7 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
         ) : (
           <>
             <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={showUnchanged}
-                onChange={(e) => setShowUnchanged(e.target.checked)}
-              />
+              <input type="checkbox" checked={showUnchanged} onChange={(e) => setShowUnchanged(e.target.checked)} />
               Show unchanged rows
             </label>
             <table className="preview-table">
@@ -270,7 +299,9 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
               <tbody>
                 {(updatesByOrder.get(activeOrder.id) ?? [])
                   .filter((u) => showUnchanged || u.changed)
-                  .map((u) => <UpdateRow key={u.edelweiss.ean} u={u} />)}
+                  .map((u) => (
+                    <UpdateRow key={u.edelweiss.ean} u={u} />
+                  ))}
               </tbody>
             </table>
           </>
@@ -278,27 +309,29 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
       </section>
 
       <section className="review-section">
-        <h2>Additions <span className="section-count">{(additionsByOrder.get(activeOrder.id) ?? []).length}</span></h2>
+        <h2>
+          Additions <span className="section-count">{(additionsByOrder.get(activeOrder.id) ?? []).length}</span>
+        </h2>
         {(additionsByOrder.get(activeOrder.id) ?? []).length === 0 ? (
           <p className="subtitle">No new items to add.</p>
         ) : (
           <div className="table-scroll">
-          <table className="preview-table">
-            <thead>{ADDITION_COLUMNS}</thead>
-            <tbody>
-              {(additionsByOrder.get(activeOrder.id) ?? []).map((item) => (
-                <AdditionRow
-                  key={item.ean}
-                  item={item}
-                  title={titleOverrides.get(item.ean) ?? item.title}
-                  storeCategory={categoryOverrides.get(item.ean) ?? item.storeCategory}
-                  categoryMap={categoryMap}
-                  onTitleChange={(val) => onTitleOverride(item.ean, val)}
-                  onCategoryChange={(val) => onCategoryOverride(item.ean, val)}
-                />
-              ))}
-            </tbody>
-          </table>
+            <table className="preview-table">
+              <thead>{ADDITION_COLUMNS}</thead>
+              <tbody>
+                {(additionsByOrder.get(activeOrder.id) ?? []).map((item) => (
+                  <AdditionRow
+                    key={item.ean}
+                    item={item}
+                    title={titleOverrides.get(item.ean) ?? item.title}
+                    storeCategory={categoryOverrides.get(item.ean) ?? item.storeCategory}
+                    categoryMap={categoryMap}
+                    onTitleChange={(val) => onTitleOverride(item.ean, val)}
+                    onCategoryChange={(val) => onCategoryOverride(item.ean, val)}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
@@ -307,16 +340,16 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
         <button
           className="primary"
           onClick={() => {
-            const updates = orders.flatMap(order =>
+            const updates = orders.flatMap((order) =>
               order.items
-                .filter(item => lsItems.has(item.ean))
-                .map(item => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap))
-                .filter(u => u.changed)
+                .filter((item) => lsItems.has(item.ean))
+                .map((item) => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap))
+                .filter((u) => u.changed)
             );
-            const additions: LightspeedAddition[] = orders.flatMap(order =>
+            const additions: LightspeedAddition[] = orders.flatMap((order) =>
               order.items
-                .filter(item => !lsItems.has(item.ean))
-                .map(item => {
+                .filter((item) => !lsItems.has(item.ean))
+                .map((item) => {
                   const title = titleOverrides.get(item.ean) ?? item.title;
                   const storeCategory = categoryOverrides.get(item.ean) ?? item.storeCategory;
                   return {
@@ -337,10 +370,13 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
         >
           Upload to Lightspeed
           <span className="tab-count">
-            {orders.reduce((sum, order) =>
-              sum +
-              (updatesByOrder.get(order.id) ?? []).filter((u) => u.changed).length +
-              (additionsByOrder.get(order.id) ?? []).length, 0)}
+            {orders.reduce(
+              (sum, order) =>
+                sum +
+                (updatesByOrder.get(order.id) ?? []).filter((u) => u.changed).length +
+                (additionsByOrder.get(order.id) ?? []).length,
+              0
+            )}
           </span>
         </button>
       </div>

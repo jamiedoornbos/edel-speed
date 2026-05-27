@@ -17,29 +17,29 @@ const MANUFACTURER_MAP_KEY = "edelspeed.manufacturerMap";
 const CATEGORY_MAP_KEY = "edelspeed.categoryMap";
 
 const DEFAULT_MAPPINGS: VendorMapping[] = [
-  { infix: "ABR", vendor: "Hachette",             brand: "Abrams"             },
-  { infix: "BAR", vendor: "Barefoot Books",        brand: ""                   },
-  { infix: "BTP", vendor: "Baker & Taylor",        brand: ""                   },
-  { infix: "CAP", vendor: "Capstone",              brand: ""                   },
-  { infix: "CD",  vendor: "Cottage Door",          brand: ""                   },
-  { infix: "CHR", vendor: "Hachette",              brand: "Chronicle"          },
-  { infix: "HBG", vendor: "Hachette",              brand: ""                   },
-  { infix: "PHA", vendor: "Hachette",              brand: "Phaidon"            },
-  { infix: "QUA", vendor: "Hachette",              brand: "Quarto"             },
-  { infix: "SBG", vendor: "Hachette",              brand: "Stable Book Group"  },
-  { infix: "HC",  vendor: "Harper Collins",        brand: ""                   },
-  { infix: "CON", vendor: "Ingram",                brand: "Consortium"         },
-  { infix: "IPS", vendor: "Ingram",                brand: ""                   },
-  { infix: "IPG", vendor: "IPG",                   brand: ""                   },
-  { infix: "LER", vendor: "Lerner",                brand: ""                   },
-  { infix: "MAC", vendor: "Macmillan",             brand: ""                   },
-  { infix: "NOR", vendor: "Norton",                brand: ""                   },
-  { infix: "ORC", vendor: "Orca",                  brand: ""                   },
-  { infix: "CAN", vendor: "Penguin Random House",  brand: "Candlewick"         },
-  { infix: "PRH", vendor: "Penguin Random House",  brand: ""                   },
-  { infix: "SCH", vendor: "Scholastic",            brand: ""                   },
-  { infix: "SS",  vendor: "Simon & Schuster",      brand: ""                   },
-  { infix: "SOU", vendor: "Sourcebooks",           brand: ""                   },
+  { infix: "ABR", vendor: "Hachette", brand: "Abrams" },
+  { infix: "BAR", vendor: "Barefoot Books", brand: "" },
+  { infix: "BTP", vendor: "Baker & Taylor", brand: "" },
+  { infix: "CAP", vendor: "Capstone", brand: "" },
+  { infix: "CD", vendor: "Cottage Door", brand: "" },
+  { infix: "CHR", vendor: "Hachette", brand: "Chronicle" },
+  { infix: "HBG", vendor: "Hachette", brand: "" },
+  { infix: "PHA", vendor: "Hachette", brand: "Phaidon" },
+  { infix: "QUA", vendor: "Hachette", brand: "Quarto" },
+  { infix: "SBG", vendor: "Hachette", brand: "Stable Book Group" },
+  { infix: "HC", vendor: "Harper Collins", brand: "" },
+  { infix: "CON", vendor: "Ingram", brand: "Consortium" },
+  { infix: "IPS", vendor: "Ingram", brand: "" },
+  { infix: "IPG", vendor: "IPG", brand: "" },
+  { infix: "LER", vendor: "Lerner", brand: "" },
+  { infix: "MAC", vendor: "Macmillan", brand: "" },
+  { infix: "NOR", vendor: "Norton", brand: "" },
+  { infix: "ORC", vendor: "Orca", brand: "" },
+  { infix: "CAN", vendor: "Penguin Random House", brand: "Candlewick" },
+  { infix: "PRH", vendor: "Penguin Random House", brand: "" },
+  { infix: "SCH", vendor: "Scholastic", brand: "" },
+  { infix: "SS", vendor: "Simon & Schuster", brand: "" },
+  { infix: "SOU", vendor: "Sourcebooks", brand: "" },
 ];
 
 const DEFAULT_LS_CONFIG: LightspeedConfig = {
@@ -172,29 +172,68 @@ function App() {
       <div className="layout">
         <nav className="sidebar">
           <div className="app-name">EdelSpeed</div>
-          <NavLink to="/" end>Import</NavLink>
+          <NavLink to="/" end>
+            Import
+          </NavLink>
           <NavLink to="/review">Review</NavLink>
           <NavLink to="/settings">Settings</NavLink>
         </nav>
         <main className="content">
           <Routes>
-            <Route path="/" element={<Import orders={orders} onImport={handleImport} mappings={mappings} activeTab={activeTab} onTabChange={setActiveTab} />} />
-            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} activeTab={activeTab} onTabChange={setActiveTab} lsItems={lsItems} fetchState={fetchState} fetchError={fetchError} categoryMap={categoryMap} titleOverrides={titleOverrides} onTitleOverride={(ean, val) => setTitleOverrides((prev) => new Map(prev).set(ean, val))} categoryOverrides={categoryOverrides} onCategoryOverride={(ean, val) => setCategoryOverrides((prev) => new Map(prev).set(ean, val))} />} />
-            <Route path="/results" element={<Results lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} />} />
-            <Route path="/settings" element={
-              <Settings
-                mappings={mappings}
-                onMappingsChange={saveMappings}
-                lsConfig={lsConfig}
-                onLsConfigChange={saveLsConfig}
-                vendorMap={vendorMap}
-                onVendorMapChange={saveVendorMap}
-                manufacturerMap={manufacturerMap}
-                onManufacturerMapChange={saveManufacturerMap}
-                categoryMap={categoryMap}
-                onCategoryMapChange={saveCategoryMap}
-              />
-            } />
+            <Route
+              path="/"
+              element={
+                <Import
+                  orders={orders}
+                  onImport={handleImport}
+                  mappings={mappings}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                />
+              }
+            />
+            <Route
+              path="/review"
+              element={
+                <Review
+                  orders={orders}
+                  lsConfig={lsConfig}
+                  vendorMap={vendorMap}
+                  manufacturerMap={manufacturerMap}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  lsItems={lsItems}
+                  fetchState={fetchState}
+                  fetchError={fetchError}
+                  categoryMap={categoryMap}
+                  titleOverrides={titleOverrides}
+                  onTitleOverride={(ean, val) => setTitleOverrides((prev) => new Map(prev).set(ean, val))}
+                  categoryOverrides={categoryOverrides}
+                  onCategoryOverride={(ean, val) => setCategoryOverrides((prev) => new Map(prev).set(ean, val))}
+                />
+              }
+            />
+            <Route
+              path="/results"
+              element={<Results lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} />}
+            />
+            <Route
+              path="/settings"
+              element={
+                <Settings
+                  mappings={mappings}
+                  onMappingsChange={saveMappings}
+                  lsConfig={lsConfig}
+                  onLsConfigChange={saveLsConfig}
+                  vendorMap={vendorMap}
+                  onVendorMapChange={saveVendorMap}
+                  manufacturerMap={manufacturerMap}
+                  onManufacturerMapChange={saveManufacturerMap}
+                  categoryMap={categoryMap}
+                  onCategoryMapChange={saveCategoryMap}
+                />
+              }
+            />
           </Routes>
         </main>
       </div>

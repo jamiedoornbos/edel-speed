@@ -11,9 +11,9 @@ interface Props {
 
 function UploadResultRow({ result }: { result: UploadResult }) {
   const changes = [
-    ...result.fieldsChanged.filter(f => f !== "tags"),
-    ...result.tagsAdded.map(t => `+${t}`),
-    ...result.tagsRemoved.map(t => `-${t}`),
+    ...result.fieldsChanged.filter((f) => f !== "tags"),
+    ...result.tagsAdded.map((t) => `+${t}`),
+    ...result.tagsRemoved.map((t) => `-${t}`),
   ].join(", ");
 
   return (
@@ -32,7 +32,9 @@ function UploadResultRow({ result }: { result: UploadResult }) {
       {result.status === "error" && result.error && (
         <tr>
           <td />
-          <td colSpan={3} className="upload-error-detail">{result.error}</td>
+          <td colSpan={3} className="upload-error-detail">
+            {result.error}
+          </td>
         </tr>
       )}
     </>
@@ -41,12 +43,14 @@ function UploadResultRow({ result }: { result: UploadResult }) {
 
 export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props) {
   const { state } = useLocation();
-  const updates: LightspeedUpdate[] = (state as { updates?: LightspeedUpdate[]; additions?: LightspeedAddition[] } | null)?.updates ?? [];
-  const additions: LightspeedAddition[] = (state as { updates?: LightspeedUpdate[]; additions?: LightspeedAddition[] } | null)?.additions ?? [];
+  const updates: LightspeedUpdate[] =
+    (state as { updates?: LightspeedUpdate[]; additions?: LightspeedAddition[] } | null)?.updates ?? [];
+  const additions: LightspeedAddition[] =
+    (state as { updates?: LightspeedUpdate[]; additions?: LightspeedAddition[] } | null)?.additions ?? [];
 
   const [phase, setPhase] = useState<"running" | "done">("running");
   const [results, setResults] = useState<UploadResult[]>(() =>
-    updates.map(u => ({
+    updates.map((u) => ({
       ean: u.edelweiss.ean,
       title: u.edelweiss.title,
       itemID: u.lsItem.itemID,
@@ -74,42 +78,46 @@ export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props)
         return;
       }
 
-      const reverseVendorMap = new Map(
-        [...vendorMap.entries()].map(([id, name]) => [name.toLowerCase(), id])
-      );
+      const reverseVendorMap = new Map([...vendorMap.entries()].map(([id, name]) => [name.toLowerCase(), id]));
       const reverseManufacturerMap = new Map(
         [...manufacturerMap.entries()].map(([id, name]) => [name.toLowerCase(), id])
       );
 
       for (let i = 0; i < updates.length; i++) {
-        setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "uploading" } : r));
+        setResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "uploading" } : r)));
 
         const result = await uploadSingleItem(
           accessToken,
           lsConfig.accountId,
           updates[i],
           reverseVendorMap,
-          reverseManufacturerMap,
+          reverseManufacturerMap
         );
 
-        setResults(prev => prev.map((r, idx) => idx === i ? {
-          ...r,
-          status: result.error ? "error" : "done",
-          fieldsChanged: result.fieldsChanged,
-          tagsAdded: result.tagsAdded,
-          tagsRemoved: result.tagsRemoved,
-          error: result.error,
-        } : r));
+        setResults((prev) =>
+          prev.map((r, idx) =>
+            idx === i
+              ? {
+                  ...r,
+                  status: result.error ? "error" : "done",
+                  fieldsChanged: result.fieldsChanged,
+                  tagsAdded: result.tagsAdded,
+                  tagsRemoved: result.tagsRemoved,
+                  error: result.error,
+                }
+              : r
+          )
+        );
       }
 
       setPhase("done");
     };
 
     run();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — run once on mount
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- run once on mount
 
-  const done = results.filter(r => r.status === "done").length;
-  const errors = results.filter(r => r.status === "error").length;
+  const done = results.filter((r) => r.status === "done").length;
+  const errors = results.filter((r) => r.status === "error").length;
   const total = results.length;
 
   return (
@@ -118,7 +126,9 @@ export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props)
       {error ? (
         <p className="error">{error}</p>
       ) : phase === "running" ? (
-        <p className="subtitle">Uploading… ({done + errors} / {total})</p>
+        <p className="subtitle">
+          Uploading… ({done + errors} / {total})
+        </p>
       ) : (
         <p className="subtitle">
           {errors === 0
@@ -139,13 +149,17 @@ export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props)
             </tr>
           </thead>
           <tbody>
-            {results.map(r => <UploadResultRow key={r.ean} result={r} />)}
+            {results.map((r) => (
+              <UploadResultRow key={r.ean} result={r} />
+            ))}
           </tbody>
         </table>
       )}
       {additions.length > 0 && (
         <section className="review-section" style={{ marginTop: 32 }}>
-          <h2>Additions <span className="section-count">{additions.length}</span></h2>
+          <h2>
+            Additions <span className="section-count">{additions.length}</span>
+          </h2>
           <table className="preview-table">
             <thead>
               <tr>
@@ -156,7 +170,7 @@ export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props)
               </tr>
             </thead>
             <tbody>
-              {additions.map(a => (
+              {additions.map((a) => (
                 <tr key={a.ean}>
                   <td className="mono">{a.ean}</td>
                   <td>{a.title}</td>

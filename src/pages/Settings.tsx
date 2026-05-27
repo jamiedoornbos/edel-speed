@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { VendorMapping, LightspeedConfig } from "../types";
-import { buildAuthorizeUrl, exchangeCode, getAccessToken, fetchVendors, fetchManufacturers, fetchCategories } from "../lightspeed";
+import {
+  buildAuthorizeUrl,
+  exchangeCode,
+  getAccessToken,
+  fetchVendors,
+  fetchManufacturers,
+  fetchCategories,
+} from "../lightspeed";
 
 interface Props {
   mappings: VendorMapping[];
@@ -18,7 +25,18 @@ interface Props {
 
 type SettingsTab = "lightspeed" | "mappings";
 
-export default function Settings({ mappings, onMappingsChange, lsConfig, onLsConfigChange, vendorMap, onVendorMapChange, manufacturerMap, onManufacturerMapChange, categoryMap, onCategoryMapChange }: Props) {
+export default function Settings({
+  mappings,
+  onMappingsChange,
+  lsConfig,
+  onLsConfigChange,
+  vendorMap,
+  onVendorMapChange,
+  manufacturerMap,
+  onManufacturerMapChange,
+  categoryMap,
+  onCategoryMapChange,
+}: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("lightspeed");
 
   // Vendor mapping form
@@ -169,10 +187,16 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
 
       <div className="orders-header" style={{ marginBottom: 24 }}>
         <div className="tab-bar">
-          <button className={`tab ${activeTab === "lightspeed" ? "active" : ""}`} onClick={() => setActiveTab("lightspeed")}>
+          <button
+            className={`tab ${activeTab === "lightspeed" ? "active" : ""}`}
+            onClick={() => setActiveTab("lightspeed")}
+          >
             Lightspeed API
           </button>
-          <button className={`tab ${activeTab === "mappings" ? "active" : ""}`} onClick={() => setActiveTab("mappings")}>
+          <button
+            className={`tab ${activeTab === "mappings" ? "active" : ""}`}
+            onClick={() => setActiveTab("mappings")}
+          >
             Vendor Mappings
           </button>
         </div>
@@ -182,14 +206,28 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
       {activeTab === "lightspeed" && (
         <section className="settings-section">
           <div className="settings-fields">
-            <label>Client ID
-              <input className="mapping-input" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Client ID" />
+            <label>
+              Client ID
+              <input
+                className="mapping-input"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                placeholder="Client ID"
+              />
             </label>
-            <label>Client Secret
-              <input className="mapping-input" type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder="Client Secret" />
+            <label>
+              Client Secret
+              <input
+                className="mapping-input"
+                type="password"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+                placeholder="Client Secret"
+              />
             </label>
             {lsConfig.accountId && (
-              <label>Account ID (auto-detected)
+              <label>
+                Account ID (auto-detected)
                 <input className="mapping-input" value={lsConfig.accountId} readOnly />
               </label>
             )}
@@ -199,30 +237,54 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
             <div className="ls-status connected">
               <div className="ls-status-row">
                 <span>✓ Connected</span>
-                <button className="btn-disconnect" onClick={disconnect}>Disconnect</button>
+                <button className="btn-disconnect" onClick={disconnect}>
+                  Disconnect
+                </button>
               </div>
               <div className="ls-status-row">
                 <span className="vendor-cache-count">{vendorMap.size} vendors cached</span>
-                <button className="primary" onClick={handleSyncVendors}>Sync Vendor List</button>
+                <button className="primary" onClick={handleSyncVendors}>
+                  Sync Vendor List
+                </button>
               </div>
               <div className="ls-status-row">
                 <span className="vendor-cache-count">{manufacturerMap.size} brands cached</span>
-                <button className="primary" onClick={handleSyncBrands}>Sync Brand List</button>
+                <button className="primary" onClick={handleSyncBrands}>
+                  Sync Brand List
+                </button>
               </div>
               <div className="ls-status-row">
                 <span className="vendor-cache-count">{categoryMap.size} categories cached</span>
-                <button className="primary" onClick={handleSyncCategories}>Sync Category List</button>
+                <button className="primary" onClick={handleSyncCategories}>
+                  Sync Category List
+                </button>
               </div>
             </div>
           ) : (
             <div className="ls-connect">
               <ol className="connect-steps">
-                <li>If you do not already have the original EdelSpeed Client ID and Secret, go to <span className="mono">cloud.lightspeedapp.com/oauth/register.php</span> and register an app with redirect URI <span className="mono">http://localhost</span>. Copy the Client ID and Client Secret into the fields above.</li>
-                <li>Click the button below. Your browser will open the Lightspeed authorization page — log in and click Authorize.</li>
-                <li>Lightspeed will redirect to a page that won't load — that's expected. Copy the <span className="mono">code=</span> value from the URL bar.</li>
+                <li>
+                  If you do not already have the original EdelSpeed Client ID and Secret, go to{" "}
+                  <span className="mono">cloud.lightspeedapp.com/oauth/register.php</span> and register an app with
+                  redirect URI <span className="mono">http://localhost</span>. Copy the Client ID and Client Secret into
+                  the fields above.
+                </li>
+                <li>
+                  Click the button below. Your browser will open the Lightspeed authorization page — log in and click
+                  Authorize.
+                </li>
+                <li>
+                  Lightspeed will redirect to a page that won't load — that's expected. Copy the{" "}
+                  <span className="mono">code=</span> value from the URL bar.
+                </li>
                 <li>Paste the code below and click Exchange.</li>
               </ol>
-              <button className="primary" onClick={openAuthPage} disabled={!canConnect} style={{ alignSelf: "flex-start" }}>
+              <button
+                className="primary"
+                onClick={openAuthPage}
+                disabled={!canConnect}
+                style={{ alignSelf: "flex-start" }}
+              >
                 Open Lightspeed Authorization Page
               </button>
               <div className="mapping-form">
@@ -259,7 +321,9 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
             <tbody>
               {mappings.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="empty-row">No mappings yet</td>
+                  <td colSpan={4} className="empty-row">
+                    No mappings yet
+                  </td>
                 </tr>
               )}
               {mappings.map((m) => (
@@ -268,7 +332,9 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
                   <td>{m.vendor}</td>
                   <td>{m.brand}</td>
                   <td>
-                    <button className="btn-remove" onClick={() => removeMapping(m.infix)}>Remove</button>
+                    <button className="btn-remove" onClick={() => removeMapping(m.infix)}>
+                      Remove
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -295,7 +361,9 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
             />
-            <button className="primary" onClick={addMapping}>Add</button>
+            <button className="primary" onClick={addMapping}>
+              Add
+            </button>
           </div>
         </section>
       )}
@@ -307,7 +375,9 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
             {syncState === "done" && <p className="status-ok">✓ {syncCount} vendors synced.</p>}
             {syncState === "error" && <p className="error">{syncError}</p>}
             {syncState !== "loading" && (
-              <button className="primary" onClick={closeSyncModal}>Close</button>
+              <button className="primary" onClick={closeSyncModal}>
+                Close
+              </button>
             )}
           </div>
         </div>
@@ -320,7 +390,9 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
             {brandSyncState === "done" && <p className="status-ok">✓ {brandSyncCount} brands synced.</p>}
             {brandSyncState === "error" && <p className="error">{brandSyncError}</p>}
             {brandSyncState !== "loading" && (
-              <button className="primary" onClick={closeBrandSyncModal}>Close</button>
+              <button className="primary" onClick={closeBrandSyncModal}>
+                Close
+              </button>
             )}
           </div>
         </div>
@@ -333,7 +405,9 @@ export default function Settings({ mappings, onMappingsChange, lsConfig, onLsCon
             {categorySyncState === "done" && <p className="status-ok">✓ {categorySyncCount} categories synced.</p>}
             {categorySyncState === "error" && <p className="error">{categorySyncError}</p>}
             {categorySyncState !== "loading" && (
-              <button className="primary" onClick={closeCategorySyncModal}>Close</button>
+              <button className="primary" onClick={closeCategorySyncModal}>
+                Close
+              </button>
             )}
           </div>
         </div>

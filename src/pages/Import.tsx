@@ -78,18 +78,15 @@ export default function Import({ orders, onImport, mappings, activeTab, onTabCha
     [mappings]
   );
 
-  const mergeOrders = useCallback(
-    (base: Order[], incoming: Order[]): Order[] => {
-      const merged = [...base];
-      for (const order of incoming) {
-        const idx = merged.findIndex((o) => o.id === order.id);
-        if (idx >= 0) merged[idx] = order;
-        else merged.push(order);
-      }
-      return merged;
-    },
-    []
-  );
+  const mergeOrders = useCallback((base: Order[], incoming: Order[]): Order[] => {
+    const merged = [...base];
+    for (const order of incoming) {
+      const idx = merged.findIndex((o) => o.id === order.id);
+      if (idx >= 0) merged[idx] = order;
+      else merged.push(order);
+    }
+    return merged;
+  }, []);
 
   useEffect(() => {
     const unlistenDrop = listen<DragDropPayload>("tauri://drag-drop", async (event) => {
@@ -126,7 +123,7 @@ export default function Import({ orders, onImport, mappings, activeTab, onTabCha
       unlistenEnter.then((f) => f());
       unlistenLeave.then((f) => f());
     };
-  }, [parseFile, mergeOrders, orders, onImport]);
+  }, [parseFile, mergeOrders, orders, onImport, onTabChange]);
 
   const onFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,7 +143,7 @@ export default function Import({ orders, onImport, mappings, activeTab, onTabCha
       });
       e.target.value = "";
     },
-    [parseFile, mergeOrders, orders, onImport]
+    [parseFile, mergeOrders, orders, onImport, onTabChange]
   );
 
   const handleProceed = () => {
@@ -169,14 +166,7 @@ export default function Import({ orders, onImport, mappings, activeTab, onTabCha
         className={`drop-zone ${dragging ? "dragging" : ""} ${orders.length > 0 ? "has-file compact" : ""}`}
         onClick={() => document.getElementById("file-input")?.click()}
       >
-        <input
-          id="file-input"
-          type="file"
-          accept=".csv"
-          multiple
-          style={{ display: "none" }}
-          onChange={onFileInput}
-        />
+        <input id="file-input" type="file" accept=".csv" multiple style={{ display: "none" }} onChange={onFileInput} />
         {orders.length > 0 ? (
           <>
             <div className="drop-icon">+</div>
