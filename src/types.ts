@@ -69,6 +69,13 @@ export interface LightspeedAddition {
 
 export type UploadStatus = "pending" | "uploading" | "done" | "error";
 
+export interface AdditionUploadResult {
+  ean: string;
+  title: string;
+  status: UploadStatus;
+  error?: string;
+}
+
 export interface UploadResult {
   ean: string;
   title: string;

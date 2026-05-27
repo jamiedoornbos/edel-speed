@@ -1,5 +1,5 @@
 import { fetch } from "@tauri-apps/plugin-http";
-import { EdelweissItem, LightspeedItem, LightspeedUpdate } from "./types";
+import { EdelweissItem, LightspeedAddition, LightspeedItem, LightspeedUpdate } from "./types";
 
 const TOKEN_URL = "https://cloud.lightspeedapp.com/oauth/access_token.php";
 const API_BASE = "https://api.lightspeedapp.com/API/V3";
@@ -357,6 +357,71 @@ export async function uploadSingleItem(
   }
 
   return { fieldsChanged, tagsAdded, tagsRemoved };
+}
+
+export async function uploadSingleAddition(
+  accessToken: string,
+  accountId: string,
+  addition: LightspeedAddition,
+  reverseVendorMap: Map<string, string>,
+  reverseManufacturerMap: Map<string, string>
+): Promise<{ error?: string }> {
+  const payload: Record<string, unknown> = {
+    description: addition.title,
+    customSku: addition.ean,
+    defaultCost: addition.cost.toFixed(2),
+    Prices: {
+      ItemPrice: { amount: addition.listPrice.toFixed(2), useType: "Default" },
+    },
+  };
+
+  if (addition.categoryID) payload.categoryID = addition.categoryID;
+
+  const vendorID = reverseVendorMap.get(addition.vendor.toLowerCase());
+  if (vendorID) payload.defaultVendorID = vendorID;
+
+  const mfrID = reverseManufacturerMap.get(addition.brand.toLowerCase());
+  if (mfrID) payload.manufacturerID = mfrID;
+
+  const res = await fetch(`${API_BASE}/Account/${accountId}/Item.json`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    return { error: `POST failed (${res.status}): ${text}` };
+  }
+
+  const data = (await res.json()) as Record<string, unknown>;
+  const newItem = data["Item"] as Record<string, string> | undefined;
+  if (!newItem) return { error: "No item returned from Lightspeed" };
+
+  const itemID = newItem.itemID;
+  const authorTags = authorToTags(addition.author);
+  if (authorTags.length > 0) {
+    let tagIdMap: Map<string, string>;
+    try {
+      tagIdMap = await fetchTagIdsByName(accessToken, accountId, authorTags);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : String(e) };
+    }
+    const tagItems = authorTags.map((t) => {
+      const id = tagIdMap.get(t);
+      return id ? { tagID: id, name: t } : { name: t };
+    });
+    const tagRes = await fetch(`${API_BASE}/Account/${accountId}/Item/${itemID}.json`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ Tags: { tag: tagItems.length === 1 ? tagItems[0] : tagItems } }),
+    });
+    if (!tagRes.ok) {
+      const text = await tagRes.text();
+      return { error: `Tags PUT failed (${tagRes.status}): ${text}` };
+    }
+  }
+
+  return {};
 }
 
 // ── Build update record ─────────────────────────────────────────────────────

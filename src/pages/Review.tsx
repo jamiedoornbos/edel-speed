@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Order, LightspeedConfig, LightspeedItem, EdelweissItem, LightspeedUpdate, LightspeedAddition } from "../types";
 import { buildLightspeedUpdate } from "../lightspeed";
@@ -68,6 +69,8 @@ function UpdateRow({ u }: { u: LightspeedUpdate }) {
   );
 }
 
+type DropdownPos = { top: number; left: number; width: number } | { bottom: number; left: number; width: number };
+
 function CategoryInput({
   value,
   categoryMap,
@@ -79,14 +82,20 @@ function CategoryInput({
 }) {
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [openUpward, setOpenUpward] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const valueOnFocus = useRef<string>(value);
   const matches =
     value.length >= 2
       ? [...categoryMap.keys()].filter((k) => k.toLowerCase().startsWith(value.toLowerCase())).sort()
       : [];
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, { capture: true, passive: true });
+    return () => window.removeEventListener("scroll", close, { capture: true });
+  }, [open]);
 
   const handleChange = (val: string) => {
     onChange(val);
@@ -101,9 +110,13 @@ function CategoryInput({
 
   const handleFocus = () => {
     valueOnFocus.current = value;
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      setOpenUpward(window.innerHeight - rect.bottom < 220);
+    if (inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      if (window.innerHeight - rect.bottom < 220) {
+        setDropdownPos({ bottom: window.innerHeight - rect.top + 2, left: rect.left, width: rect.width });
+      } else {
+        setDropdownPos({ top: rect.bottom + 2, left: rect.left, width: rect.width });
+      }
     }
     setOpen(true);
   };
@@ -133,7 +146,7 @@ function CategoryInput({
   };
 
   return (
-    <div className="category-combobox" ref={containerRef}>
+    <div className="category-combobox">
       <input
         ref={inputRef}
         className="mapping-input"
@@ -143,20 +156,27 @@ function CategoryInput({
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
       />
-      {open && matches.length > 0 && (
-        <ul className={`category-suggestions${openUpward ? " open-upward" : ""}`}>
-          {matches.map((name, i) => (
-            <li
-              key={name}
-              className={i === selectedIndex ? "active" : undefined}
-              onMouseDown={() => select(name)}
-              onMouseEnter={() => setSelectedIndex(i)}
-            >
-              {name}
-            </li>
-          ))}
-        </ul>
-      )}
+      {open &&
+        matches.length > 0 &&
+        dropdownPos &&
+        createPortal(
+          <ul
+            className="category-suggestions"
+            style={{ position: "fixed", ...dropdownPos, minWidth: dropdownPos.width }}
+          >
+            {matches.map((name, i) => (
+              <li
+                key={name}
+                className={i === selectedIndex ? "active" : undefined}
+                onMouseDown={() => select(name)}
+                onMouseEnter={() => setSelectedIndex(i)}
+              >
+                {name}
+              </li>
+            ))}
+          </ul>,
+          document.body
+        )}
     </div>
   );
 }
