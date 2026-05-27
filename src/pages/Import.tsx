@@ -127,13 +127,18 @@ export default function Import({ orders, onImport, mappings, activeTab, onTabCha
 
   const onFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      const fileCount = files.length;
+      e.target.value = "";
+      if (fileCount === 0) return;
       const incoming: Order[] = [];
-      Array.from(e.target.files ?? []).forEach((file) => {
+      let processed = 0;
+      files.forEach((file) => {
         const reader = new FileReader();
         reader.onload = (ev) => {
           const order = parseFile(ev.target?.result as string, file.name);
           if (order) incoming.push(order);
-          if (incoming.length === e.target.files!.length) {
+          if (++processed === fileCount && incoming.length > 0) {
             const next = mergeOrders(orders, incoming);
             onImport(next);
             onTabChange(incoming[incoming.length - 1].id);
@@ -141,7 +146,6 @@ export default function Import({ orders, onImport, mappings, activeTab, onTabCha
         };
         reader.readAsText(file);
       });
-      e.target.value = "";
     },
     [parseFile, mergeOrders, orders, onImport, onTabChange]
   );
