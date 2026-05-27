@@ -59,7 +59,15 @@ function DiffCell({ differs, old: oldVal, next }: { differs: boolean; old: strin
 function UpdateRow({ u }: { u: LightspeedUpdate }) {
   return (
     <tr>
-      <td>{u.edelweiss.title}</td>
+      <td>
+        <a
+          href={`https://us.merchantos.com/?name=item.views.item&form_name=view&id=${u.lsItem.itemID}&tab=details`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {u.edelweiss.title}
+        </a>
+      </td>
       <td className="mono">{u.edelweiss.ean}</td>
       <DiffCell differs={u.costDiffers} old={`$${u.lsCost.toFixed(2)}`} next={`$${u.edelweiss.cost.toFixed(2)}`} />
       <DiffCell differs={u.vendorDiffers} old={u.lsVendorName} next={u.edelweiss.vendor} />

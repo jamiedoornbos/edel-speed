@@ -46,7 +46,19 @@ function AdditionResultRow({ result }: { result: AdditionUploadResult }) {
     <>
       <tr>
         <td className="mono">{result.ean}</td>
-        <td>{result.title}</td>
+        <td>
+          {result.status === "done" && result.itemID ? (
+            <a
+              href={`https://us.merchantos.com/?name=item.views.item&form_name=view&id=${result.itemID}&tab=details`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {result.title}
+            </a>
+          ) : (
+            result.title
+          )}
+        </td>
         <td>
           {result.status === "pending" && <span className="status-loading">Pending</span>}
           {result.status === "uploading" && <span className="status-loading">Uploading…</span>}
@@ -150,7 +162,11 @@ export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props)
         );
 
         setAdditionResults((prev) =>
-          prev.map((r, idx) => (idx === i ? { ...r, status: result.error ? "error" : "done", error: result.error } : r))
+          prev.map((r, idx) =>
+            idx === i
+              ? { ...r, status: result.error ? "error" : "done", itemID: result.itemID, error: result.error }
+              : r
+          )
         );
       }
 

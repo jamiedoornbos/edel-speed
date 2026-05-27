@@ -365,7 +365,7 @@ export async function uploadSingleAddition(
   addition: LightspeedAddition,
   reverseVendorMap: Map<string, string>,
   reverseManufacturerMap: Map<string, string>
-): Promise<{ error?: string }> {
+): Promise<{ itemID?: string; error?: string }> {
   const payload: Record<string, unknown> = {
     description: addition.title,
     customSku: addition.ean,
@@ -417,11 +417,11 @@ export async function uploadSingleAddition(
     });
     if (!tagRes.ok) {
       const text = await tagRes.text();
-      return { error: `Tags PUT failed (${tagRes.status}): ${text}` };
+      return { itemID, error: `Tags PUT failed (${tagRes.status}): ${text}` };
     }
   }
 
-  return {};
+  return { itemID };
 }
 
 // ── Build update record ─────────────────────────────────────────────────────

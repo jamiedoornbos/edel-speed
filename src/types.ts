@@ -73,6 +73,7 @@ export interface AdditionUploadResult {
   ean: string;
   title: string;
   status: UploadStatus;
+  itemID?: string;
   error?: string;
 }
 
