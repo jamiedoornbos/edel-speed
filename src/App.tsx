@@ -110,6 +110,15 @@ function App() {
   const [vendorMap, setVendorMap] = useState<Map<string, string>>(loadVendorMap);
   const [manufacturerMap, setManufacturerMap] = useState<Map<string, string>>(loadManufacturerMap);
   const [categoryMap, setCategoryMap] = useState<Map<string, string>>(loadCategoryMap);
+  const [titleOverrides, setTitleOverrides] = useState<Map<string, string>>(new Map());
+  const [categoryOverrides, setCategoryOverrides] = useState<Map<string, string>>(new Map());
+
+  const handleImport = (next: Order[]) => {
+    const eans = new Set(next.flatMap((o) => o.items.map((i) => i.ean)));
+    setOrders(next);
+    setTitleOverrides((prev) => new Map([...prev].filter(([k]) => eans.has(k))));
+    setCategoryOverrides((prev) => new Map([...prev].filter(([k]) => eans.has(k))));
+  };
 
   const isConfigured = !!(lsConfig.refreshToken && lsConfig.clientId && lsConfig.clientSecret && lsConfig.accountId);
 
@@ -169,8 +178,8 @@ function App() {
         </nav>
         <main className="content">
           <Routes>
-            <Route path="/" element={<Import orders={orders} onImport={setOrders} mappings={mappings} activeTab={activeTab} onTabChange={setActiveTab} />} />
-            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} activeTab={activeTab} onTabChange={setActiveTab} lsItems={lsItems} fetchState={fetchState} fetchError={fetchError} categoryMap={categoryMap} />} />
+            <Route path="/" element={<Import orders={orders} onImport={handleImport} mappings={mappings} activeTab={activeTab} onTabChange={setActiveTab} />} />
+            <Route path="/review" element={<Review orders={orders} lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} activeTab={activeTab} onTabChange={setActiveTab} lsItems={lsItems} fetchState={fetchState} fetchError={fetchError} categoryMap={categoryMap} titleOverrides={titleOverrides} onTitleOverride={(ean, val) => setTitleOverrides((prev) => new Map(prev).set(ean, val))} categoryOverrides={categoryOverrides} onCategoryOverride={(ean, val) => setCategoryOverrides((prev) => new Map(prev).set(ean, val))} />} />
             <Route path="/results" element={<Results lsConfig={lsConfig} vendorMap={vendorMap} manufacturerMap={manufacturerMap} />} />
             <Route path="/settings" element={
               <Settings

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Order, LightspeedConfig, LightspeedItem, EdelweissItem, LightspeedUpdate, LightspeedAddition } from "../types";
 import { buildLightspeedUpdate } from "../lightspeed";
@@ -16,6 +16,10 @@ interface Props {
   fetchState: FetchState;
   fetchError: string | null;
   categoryMap: Map<string, string>;
+  titleOverrides: Map<string, string>;
+  onTitleOverride: (ean: string, val: string) => void;
+  categoryOverrides: Map<string, string>;
+  onCategoryOverride: (ean: string, val: string) => void;
 }
 
 const UPDATE_COLUMNS = (
@@ -67,6 +71,10 @@ function CategoryInput({ value, categoryMap, onChange }: {
 }) {
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [openUpward, setOpenUpward] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const valueOnFocus = useRef<string>(value);
   const matches = value.length >= 2
     ? [...categoryMap.keys()].filter((k) => k.toLowerCase().startsWith(value.toLowerCase())).sort()
     : [];
@@ -82,6 +90,22 @@ function CategoryInput({ value, categoryMap, onChange }: {
     setOpen(false);
   };
 
+  const handleFocus = () => {
+    valueOnFocus.current = value;
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setOpenUpward(window.innerHeight - rect.bottom < 220);
+    }
+    setOpen(true);
+  };
+
+  const handleBlur = () => {
+    setOpen(false);
+    if (!categoryMap.has(value)) {
+      onChange(valueOnFocus.current);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!open || matches.length === 0) return;
     if (e.key === "ArrowDown") {
@@ -93,21 +117,25 @@ function CategoryInput({ value, categoryMap, onChange }: {
     } else if (e.key === "Enter") {
       e.preventDefault();
       select(matches[selectedIndex]);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      inputRef.current?.blur();
     }
   };
 
   return (
-    <div className="category-combobox">
+    <div className="category-combobox" ref={containerRef}>
       <input
+        ref={inputRef}
         className="mapping-input"
         value={value}
         onChange={(e) => handleChange(e.target.value)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         onKeyDown={handleKeyDown}
       />
       {open && matches.length > 0 && (
-        <ul className="category-suggestions">
+        <ul className={`category-suggestions${openUpward ? " open-upward" : ""}`}>
           {matches.map((name, i) => (
             <li
               key={name}
@@ -159,16 +187,9 @@ function AdditionRow({ item, title, storeCategory, categoryMap, onTitleChange, o
   );
 }
 
-export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, activeTab, onTabChange, lsItems, fetchState, fetchError, categoryMap }: Props) {
+export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, activeTab, onTabChange, lsItems, fetchState, fetchError, categoryMap, titleOverrides, onTitleOverride, categoryOverrides, onCategoryOverride }: Props) {
   const navigate = useNavigate();
   const [showUnchanged, setShowUnchanged] = useState(false);
-  const [titleOverrides, setTitleOverrides] = useState<Map<string, string>>(new Map());
-  const [categoryOverrides, setCategoryOverrides] = useState<Map<string, string>>(new Map());
-
-  const setTitleOverride = (ean: string, val: string) =>
-    setTitleOverrides((prev) => new Map(prev).set(ean, val));
-  const setCategoryOverride = (ean: string, val: string) =>
-    setCategoryOverrides((prev) => new Map(prev).set(ean, val));
 
   const isConfigured = !!(lsConfig.refreshToken && lsConfig.clientId && lsConfig.clientSecret && lsConfig.accountId);
 
@@ -272,8 +293,8 @@ export default function Review({ orders, lsConfig, vendorMap, manufacturerMap, a
                   title={titleOverrides.get(item.ean) ?? item.title}
                   storeCategory={categoryOverrides.get(item.ean) ?? item.storeCategory}
                   categoryMap={categoryMap}
-                  onTitleChange={(val) => setTitleOverride(item.ean, val)}
-                  onCategoryChange={(val) => setCategoryOverride(item.ean, val)}
+                  onTitleChange={(val) => onTitleOverride(item.ean, val)}
+                  onCategoryChange={(val) => onCategoryOverride(item.ean, val)}
                 />
               ))}
             </tbody>

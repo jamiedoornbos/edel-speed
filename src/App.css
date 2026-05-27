@@ -346,6 +346,12 @@ button.secondary:hover {
   overflow-y: auto;
 }
 
+.category-suggestions.open-upward {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 2px;
+}
+
 .category-suggestions li {
   padding: 7px 12px;
   font-size: 13px;
