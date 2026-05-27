@@ -15,4 +15,10 @@ export default tseslint.config(
     },
   },
   prettierConfig,
+  {
+    files: ["scripts/**/*.mjs"],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: { globals: { console: "readonly", process: "readonly", fetch: "readonly", URLSearchParams: "readonly" } },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  }
 );
