@@ -3,3 +3,6 @@ run:
 
 build:
 	npm run tauri build
+
+icons:
+	npm run tauri icon
