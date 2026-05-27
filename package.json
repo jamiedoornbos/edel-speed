@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "eslint src",
-    "format": "prettier --write src"
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "prepare": "simple-git-hooks"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -20,6 +22,9 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.15.0"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npm run lint && npm run format:check"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -32,6 +37,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.8.3",
+    "simple-git-hooks": "^2.13.1",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.60.0",
     "vite": "^7.0.4"
