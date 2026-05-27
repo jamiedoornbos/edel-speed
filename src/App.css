@@ -393,7 +393,7 @@ button.secondary:hover {
 }
 
 .table-scroll .preview-table td:first-child {
-  min-width: 480px;
+  min-width: 400px;
 }
 
 .table-scroll .preview-table td:nth-child(3) {
