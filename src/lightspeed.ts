@@ -228,6 +228,21 @@ export function authorToTags(author: string): string[] {
 
 // ── Upload ─────────────────────────────────────────────────────────────────
 
+// Wrapper around fetch that retries on 429, honouring Retry-After, and counts hits.
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit
+): Promise<{ response: Response; rateLimitHits: number }> {
+  let rateLimitHits = 0;
+  while (true) {
+    const res = await fetch(url, options);
+    if (res.status !== 429) return { response: res, rateLimitHits };
+    rateLimitHits++;
+    const retryAfter = parseInt(res.headers.get("Retry-After") ?? "1", 10);
+    await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+  }
+}
+
 // Look up global tag IDs by name, one request per name.
 // Used so tag PUTs can reference tags by ID rather than name — sending {name: "..."}
 // causes LS to create a new global tag even if one with that name already exists,
@@ -236,12 +251,16 @@ async function fetchTagIdsByName(
   accessToken: string,
   accountId: string,
   names: string[]
-): Promise<Map<string, string>> {
-  if (names.length === 0) return new Map();
+): Promise<{ result: Map<string, string>; rateLimitHits: number }> {
+  if (names.length === 0) return { result: new Map(), rateLimitHits: 0 };
   const result = new Map<string, string>();
+  let rateLimitHits = 0;
   for (const name of names) {
     const url = `${API_BASE}/Account/${accountId}/Tag.json?name=${encodeURIComponent(name)}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const { response: res, rateLimitHits: hits } = await fetchWithRetry(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    rateLimitHits += hits;
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Tag lookup for "${name}" failed (${res.status}): ${text}`);
@@ -255,13 +274,14 @@ async function fetchTagIdsByName(
       if (tagName === name) result.set(name, t.tagID);
     }
   }
-  return result;
+  return { result, rateLimitHits };
 }
 
 export interface ItemUploadResult {
   fieldsChanged: string[];
   tagsAdded: string[];
   tagsRemoved: string[];
+  rateLimitHits: number;
   error?: string;
 }
 
@@ -282,6 +302,7 @@ export async function uploadSingleItem(
   const fieldsChanged: string[] = [];
   const tagsAdded: string[] = [];
   const tagsRemoved: string[] = [];
+  let rateLimitHits = 0;
 
   // ── Scalar fields PUT ──────────────────────────────────────────────────────
   const scalarPayload: Record<string, string> = {};
@@ -306,14 +327,24 @@ export async function uploadSingleItem(
   }
 
   if (Object.keys(scalarPayload).length > 0) {
-    const res = await fetch(`${API_BASE}/Account/${accountId}/Item/${itemID}.json`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(scalarPayload),
-    });
+    const { response: res, rateLimitHits: hits } = await fetchWithRetry(
+      `${API_BASE}/Account/${accountId}/Item/${itemID}.json`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(scalarPayload),
+      }
+    );
+    rateLimitHits += hits;
     if (!res.ok) {
       const text = await res.text();
-      return { fieldsChanged: [], tagsAdded: [], tagsRemoved: [], error: `PUT failed (${res.status}): ${text}` };
+      return {
+        fieldsChanged: [],
+        tagsAdded: [],
+        tagsRemoved: [],
+        rateLimitHits,
+        error: `PUT failed (${res.status}): ${text}`,
+      };
     }
   }
 
@@ -327,36 +358,50 @@ export async function uploadSingleItem(
 
     let tagIdMap: Map<string, string>;
     try {
-      tagIdMap = await fetchTagIdsByName(accessToken, accountId, fullTagSet);
+      const { result, rateLimitHits: hits } = await fetchTagIdsByName(accessToken, accountId, fullTagSet);
+      tagIdMap = result;
+      rateLimitHits += hits;
     } catch (e) {
-      return { fieldsChanged, tagsAdded: [], tagsRemoved: [], error: e instanceof Error ? e.message : String(e) };
+      return {
+        fieldsChanged,
+        tagsAdded: [],
+        tagsRemoved: [],
+        rateLimitHits,
+        error: e instanceof Error ? e.message : String(e),
+      };
     }
 
     const tagItems = fullTagSet.map((t) => {
       const id = tagIdMap.get(t);
       return id ? { tagID: id, name: t } : { name: t };
     });
-    const tagPayload = {
-      Tags: {
-        tag: tagItems.length === 1 ? tagItems[0] : tagItems,
-      },
-    };
-    const res = await fetch(`${API_BASE}/Account/${accountId}/Item/${itemID}.json`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(tagPayload),
-    });
-    if (!res.ok) {
-      const text = await res.text();
+    const tagPayload = { Tags: { tag: tagItems.length === 1 ? tagItems[0] : tagItems } };
+    const { response: tagRes, rateLimitHits: tagHits } = await fetchWithRetry(
+      `${API_BASE}/Account/${accountId}/Item/${itemID}.json`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(tagPayload),
+      }
+    );
+    rateLimitHits += tagHits;
+    if (!tagRes.ok) {
+      const text = await tagRes.text();
       // Scalar fields were already applied above — report them and the tag error separately.
-      return { fieldsChanged, tagsAdded: [], tagsRemoved: [], error: `Tags PUT failed (${res.status}): ${text}` };
+      return {
+        fieldsChanged,
+        tagsAdded: [],
+        tagsRemoved: [],
+        rateLimitHits,
+        error: `Tags PUT failed (${tagRes.status}): ${text}`,
+      };
     }
     tagsAdded.push(...authorTags.filter((t) => !lsTags.includes(t)));
     tagsRemoved.push(...lsTags.filter((t) => !authorTags.includes(t) && !isCuratedTag(t)));
     fieldsChanged.push("tags");
   }
 
-  return { fieldsChanged, tagsAdded, tagsRemoved };
+  return { fieldsChanged, tagsAdded, tagsRemoved, rateLimitHits };
 }
 
 export async function uploadSingleAddition(
@@ -365,7 +410,7 @@ export async function uploadSingleAddition(
   addition: LightspeedAddition,
   reverseVendorMap: Map<string, string>,
   reverseManufacturerMap: Map<string, string>
-): Promise<{ itemID?: string; error?: string }> {
+): Promise<{ itemID?: string; rateLimitHits: number; error?: string }> {
   const payload: Record<string, unknown> = {
     description: addition.title,
     customSku: addition.ean,
@@ -383,45 +428,57 @@ export async function uploadSingleAddition(
   const mfrID = reverseManufacturerMap.get(addition.brand.toLowerCase());
   if (mfrID) payload.manufacturerID = mfrID;
 
-  const res = await fetch(`${API_BASE}/Account/${accountId}/Item.json`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  let rateLimitHits = 0;
+
+  const { response: res, rateLimitHits: postHits } = await fetchWithRetry(
+    `${API_BASE}/Account/${accountId}/Item.json`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+  rateLimitHits += postHits;
   if (!res.ok) {
     const text = await res.text();
-    return { error: `POST failed (${res.status}): ${text}` };
+    return { rateLimitHits, error: `POST failed (${res.status}): ${text}` };
   }
 
   const data = (await res.json()) as Record<string, unknown>;
   const newItem = data["Item"] as Record<string, string> | undefined;
-  if (!newItem) return { error: "No item returned from Lightspeed" };
+  if (!newItem) return { rateLimitHits, error: "No item returned from Lightspeed" };
 
   const itemID = newItem.itemID;
   const authorTags = authorToTags(addition.author);
   if (authorTags.length > 0) {
     let tagIdMap: Map<string, string>;
     try {
-      tagIdMap = await fetchTagIdsByName(accessToken, accountId, authorTags);
+      const { result, rateLimitHits: tagLookupHits } = await fetchTagIdsByName(accessToken, accountId, authorTags);
+      tagIdMap = result;
+      rateLimitHits += tagLookupHits;
     } catch (e) {
-      return { error: e instanceof Error ? e.message : String(e) };
+      return { rateLimitHits, error: e instanceof Error ? e.message : String(e) };
     }
     const tagItems = authorTags.map((t) => {
       const id = tagIdMap.get(t);
       return id ? { tagID: id, name: t } : { name: t };
     });
-    const tagRes = await fetch(`${API_BASE}/Account/${accountId}/Item/${itemID}.json`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ Tags: { tag: tagItems.length === 1 ? tagItems[0] : tagItems } }),
-    });
+    const { response: tagRes, rateLimitHits: tagHits } = await fetchWithRetry(
+      `${API_BASE}/Account/${accountId}/Item/${itemID}.json`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ Tags: { tag: tagItems.length === 1 ? tagItems[0] : tagItems } }),
+      }
+    );
+    rateLimitHits += tagHits;
     if (!tagRes.ok) {
       const text = await tagRes.text();
-      return { itemID, error: `Tags PUT failed (${tagRes.status}): ${text}` };
+      return { itemID, rateLimitHits, error: `Tags PUT failed (${tagRes.status}): ${text}` };
     }
   }
 
-  return { itemID };
+  return { itemID, rateLimitHits };
 }
 
 // ── Build update record ─────────────────────────────────────────────────────

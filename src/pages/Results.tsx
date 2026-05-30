@@ -101,6 +101,7 @@ export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props)
     additions.map((a) => ({ ean: a.ean, title: a.title, status: "pending" }))
   );
   const [error, setError] = useState<string | null>(null);
+  const [rateLimitHits, setRateLimitHits] = useState(0);
 
   useEffect(() => {
     if (updates.length === 0 && additions.length === 0) {
@@ -134,6 +135,7 @@ export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props)
           reverseManufacturerMap
         );
 
+        if (result.rateLimitHits > 0) setRateLimitHits((n) => n + result.rateLimitHits);
         setResults((prev) =>
           prev.map((r, idx) =>
             idx === i
@@ -161,6 +163,7 @@ export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props)
           reverseManufacturerMap
         );
 
+        if (result.rateLimitHits > 0) setRateLimitHits((n) => n + result.rateLimitHits);
         setAdditionResults((prev) =>
           prev.map((r, idx) =>
             idx === i
@@ -192,12 +195,24 @@ export default function Results({ lsConfig, vendorMap, manufacturerMap }: Props)
       ) : phase === "running" ? (
         <p className="subtitle">
           Uploading… ({totalDone + totalErrors} / {total})
+          {rateLimitHits > 0 && (
+            <span className="rate-limit-hits">
+              {" "}
+              · {rateLimitHits} rate limit {rateLimitHits === 1 ? "retry" : "retries"}
+            </span>
+          )}
         </p>
       ) : (
         <p className="subtitle">
           {totalErrors === 0
             ? `All ${total} item${total !== 1 ? "s" : ""} uploaded.`
             : `${totalDone} uploaded, ${totalErrors} error${totalErrors !== 1 ? "s" : ""}.`}
+          {rateLimitHits > 0 && (
+            <span className="rate-limit-hits">
+              {" "}
+              · {rateLimitHits} rate limit {rateLimitHits === 1 ? "retry" : "retries"}
+            </span>
+          )}
         </p>
       )}
       {results.length > 0 && (
