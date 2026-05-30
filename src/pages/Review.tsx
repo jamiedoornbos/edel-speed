@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Order, LightspeedConfig, LightspeedItem, EdelweissItem, LightspeedUpdate, LightspeedAddition } from "../types";
-import { buildLightspeedUpdate } from "../lightspeed";
+import { buildLightspeedUpdate, isCuratedTag } from "../lightspeed";
 
 type FetchState = "idle" | "loading" | "done" | "error";
 
@@ -72,7 +72,11 @@ function UpdateRow({ u }: { u: LightspeedUpdate }) {
       <DiffCell differs={u.costDiffers} old={`$${u.lsCost.toFixed(2)}`} next={`$${u.edelweiss.cost.toFixed(2)}`} />
       <DiffCell differs={u.vendorDiffers} old={u.lsVendorName} next={u.edelweiss.vendor} />
       <DiffCell differs={u.brandDiffers} old={u.lsManufacturerName} next={u.edelweiss.brand} />
-      <DiffCell differs={u.tagsDiffer} old={u.lsTags.join(", ")} next={u.authorTags.join(", ")} />
+      <DiffCell
+        differs={u.tagsDiffer}
+        old={u.lsTags.join(", ")}
+        next={[...new Set([...u.authorTags, ...u.lsTags.filter(isCuratedTag)])].join(", ")}
+      />
     </tr>
   );
 }
