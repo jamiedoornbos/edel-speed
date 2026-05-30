@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { LightspeedUpdate, LightspeedAddition, LightspeedConfig, UploadResult, AdditionUploadResult } from "../types";
-import { getAccessToken, uploadSingleItem, uploadSingleAddition } from "../lightspeed";
+import { getAccessToken, uploadSingleItem, uploadSingleAddition, itemLink } from "../lightspeed";
 
 interface Props {
   lsConfig: LightspeedConfig;
@@ -20,7 +20,11 @@ function UploadResultRow({ result }: { result: UploadResult }) {
     <>
       <tr>
         <td className="mono">{result.ean}</td>
-        <td>{result.title}</td>
+        <td>
+          <a href={itemLink(result.itemID)} target="_blank" rel="noreferrer">
+            {result.title}
+          </a>
+        </td>
         <td>{changes || "—"}</td>
         <td>
           {result.status === "pending" && <span className="status-loading">Pending</span>}
@@ -48,11 +52,7 @@ function AdditionResultRow({ result }: { result: AdditionUploadResult }) {
         <td className="mono">{result.ean}</td>
         <td>
           {result.status === "done" && result.itemID ? (
-            <a
-              href={`https://us.merchantos.com/?name=item.views.item&form_name=view&id=${result.itemID}&tab=details`}
-              target="_blank"
-              rel="noreferrer"
-            >
+            <a href={itemLink(result.itemID)} target="_blank" rel="noreferrer">
               {result.title}
             </a>
           ) : (

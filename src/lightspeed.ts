@@ -460,3 +460,7 @@ export function buildLightspeedUpdate(
     },
   };
 }
+
+export function itemLink(itemID: string): string {
+  return `https://us.merchantos.com/?name=item.views.item&form_name=view&id=${itemID}&tab=details`;
+}
