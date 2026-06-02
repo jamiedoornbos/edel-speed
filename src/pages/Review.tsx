@@ -31,6 +31,7 @@ const UPDATE_COLUMNS = (
     <th>Vendor</th>
     <th>Brand</th>
     <th>Tags</th>
+    <th>Subcategory</th>
   </tr>
 );
 
@@ -56,7 +57,57 @@ function DiffCell({ differs, old: oldVal, next }: { differs: boolean; old: strin
   );
 }
 
-function UpdateRow({ u }: { u: LightspeedUpdate }) {
+function CategoryStatusCell({
+  edelweissCategory,
+  lsItem,
+  categoryMap,
+}: {
+  edelweissCategory: string;
+  lsItem: LightspeedUpdate["lsItem"];
+  categoryMap: Map<string, string>;
+}) {
+  if (categoryMap.size === 0) return <td />;
+
+  const lsCategoryId = lsItem.categoryID as string | undefined;
+  const reverseCategoryMap = new Map([...categoryMap.entries()].map(([name, id]) => [id, name]));
+  const currentName = lsCategoryId ? (reverseCategoryMap.get(lsCategoryId) ?? `ID:${lsCategoryId}`) : null;
+
+  if (!lsCategoryId) {
+    return (
+      <td>
+        <span className="status-error">✗ not set</span>
+      </td>
+    );
+  }
+
+  if (!edelweissCategory) {
+    return (
+      <td>
+        <span className="status-ok">✓ ∅ → {currentName}</span>
+      </td>
+    );
+  }
+
+  const expectedId = categoryMap.get(edelweissCategory);
+
+  if (lsCategoryId === expectedId) {
+    return (
+      <td>
+        <span className="status-ok">✓ {edelweissCategory}</span>
+      </td>
+    );
+  }
+
+  return (
+    <td>
+      <span className="status-warn">
+        {currentName} → {edelweissCategory}
+      </span>
+    </td>
+  );
+}
+
+function UpdateRow({ u, categoryMap }: { u: LightspeedUpdate; categoryMap: Map<string, string> }) {
   return (
     <tr>
       <td>
@@ -77,6 +128,7 @@ function UpdateRow({ u }: { u: LightspeedUpdate }) {
         old={u.lsTags.join(", ")}
         next={[...new Set([...u.authorTags, ...u.lsTags.filter(isCuratedTag)])].join(", ")}
       />
+      <CategoryStatusCell edelweissCategory={u.edelweiss.storeCategory} lsItem={u.lsItem} categoryMap={categoryMap} />
     </tr>
   );
 }
@@ -332,7 +384,7 @@ export default function Review({
                 {(updatesByOrder.get(activeOrder.id) ?? [])
                   .filter((u) => showUnchanged || u.changed)
                   .map((u) => (
-                    <UpdateRow key={u.edelweiss.ean} u={u} />
+                    <UpdateRow key={u.edelweiss.ean} u={u} categoryMap={categoryMap} />
                   ))}
               </tbody>
             </table>
