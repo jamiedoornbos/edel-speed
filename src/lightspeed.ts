@@ -228,6 +228,20 @@ export function authorToTags(author: string): string[] {
 
 // ── Upload ─────────────────────────────────────────────────────────────────
 
+// Parse a Lightspeed error response body and return a human-friendly message.
+// Falls back to the raw text for unknown error classes.
+function lsErrorMessage(status: number, text: string): string {
+  try {
+    const json = JSON.parse(text) as { errorClass?: string };
+    if (json.errorClass === "DuplicatedVendorNumsException") {
+      return "Duplicate vendor entry in Lightspeed — open the item in the back office and remove the duplicate vendor number, then try again.";
+    }
+  } catch {
+    // not JSON, fall through
+  }
+  return `Request failed (${status}): ${text}`;
+}
+
 // Wrapper around fetch that retries on 429, honouring Retry-After, and counts hits.
 async function fetchWithRetry(
   url: string,
@@ -358,7 +372,7 @@ export async function uploadSingleItem(
         tagsAdded: [],
         tagsRemoved: [],
         rateLimitHits,
-        error: `PUT failed (${res.status}): ${text}`,
+        error: lsErrorMessage(res.status, text),
       };
     }
   }
@@ -456,7 +470,7 @@ export async function uploadSingleAddition(
   rateLimitHits += postHits;
   if (!res.ok) {
     const text = await res.text();
-    return { rateLimitHits, error: `POST failed (${res.status}): ${text}` };
+    return { rateLimitHits, error: lsErrorMessage(res.status, text) };
   }
 
   const data = (await res.json()) as Record<string, unknown>;
