@@ -231,11 +231,26 @@ export function authorToTags(author: string): string[] {
 // Wrapper around fetch that retries on 429, honouring Retry-After, and counts hits.
 async function fetchWithRetry(
   url: string,
-  options: RequestInit
+  options: RequestInit,
+  timeoutMs = 30_000
 ): Promise<{ response: Response; rateLimitHits: number }> {
   let rateLimitHits = 0;
   while (true) {
-    const res = await fetch(url, options);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let res: Response;
+    try {
+      res = await fetch(url, { ...options, signal: controller.signal });
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") {
+        const err = new Error(`Request timed out after ${timeoutMs / 1000}s`);
+        err.cause = e;
+        throw err;
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
     if (res.status !== 429) return { response: res, rateLimitHits };
     rateLimitHits++;
     const retryAfter = parseInt(res.headers.get("Retry-After") ?? "1", 10);
