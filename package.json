@@ -1,7 +1,7 @@
 {
   "name": "edel-speed",
   "private": true,
-  "version": "0.1.7",
+  "version": "0.0.0-local",
   "type": "module",
   "scripts": {
     "dev": "vite",
