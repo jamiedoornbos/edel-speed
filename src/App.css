@@ -588,6 +588,25 @@ button.secondary:hover {
   color: #666;
 }
 
+/* Swap author button in tags cell */
+.swap-author-btn {
+  margin-left: 6px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  cursor: pointer;
+  color: #64748b;
+  vertical-align: middle;
+}
+
+.swap-author-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
 /* Diff highlight */
 .cell-diff {
   background: #fef9c3;

@@ -6,6 +6,7 @@ export interface EdelweissItem {
   listPrice: number;
   storeCategory: string;
   author: string;
+  author2: string;
   cost: number;
 }
 
@@ -43,7 +44,8 @@ export interface LightspeedItem {
 export interface LightspeedUpdate {
   edelweiss: EdelweissItem;
   lsItem: LightspeedItem;
-  authorTags: string[];
+  author1Tags: string[];
+  author2Tags: string[];
   lsTags: string[];
   lsCost: number;
   lsVendorName: string;
@@ -51,8 +53,13 @@ export interface LightspeedUpdate {
   costDiffers: boolean;
   vendorDiffers: boolean;
   brandDiffers: boolean;
-  tagsDiffer: boolean;
-  changed: boolean;
+  tagsAuthor1Differ: boolean;
+  tagsAuthor2Differ: boolean;
+  useAuthor2: boolean;
+  // getters — depend on useAuthor2:
+  readonly authorTags: string[];
+  readonly tagsDiffer: boolean;
+  readonly changed: boolean;
 }
 
 export interface LightspeedAddition {

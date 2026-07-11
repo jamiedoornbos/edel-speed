@@ -47,16 +47,34 @@ const ADDITION_COLUMNS = (
   </tr>
 );
 
-function DiffCell({ differs, old: oldVal, next }: { differs: boolean; old: string; next: string }) {
-  if (!differs) return <td>{next}</td>;
+function DiffCell({
+  differs,
+  old: oldVal,
+  next,
+  children,
+}: {
+  differs: boolean;
+  old: string;
+  next: string;
+  children?: React.ReactNode;
+}) {
+  if (!differs)
+    return (
+      <td>
+        {next}
+        {children}
+      </td>
+    );
   return (
     <td className="cell-diff">
       {oldVal} → {next}
+      {children}
     </td>
   );
 }
 
-function UpdateRow({ u }: { u: LightspeedUpdate }) {
+function UpdateRow({ u, onSwap }: { u: LightspeedUpdate; onSwap: () => void }) {
+  const nextTags = [...new Set([...u.authorTags, ...u.lsTags.filter(isCuratedTag)])].join(", ");
   return (
     <tr>
       <td>
@@ -72,11 +90,13 @@ function UpdateRow({ u }: { u: LightspeedUpdate }) {
       <DiffCell differs={u.costDiffers} old={`$${u.lsCost.toFixed(2)}`} next={`$${u.edelweiss.cost.toFixed(2)}`} />
       <DiffCell differs={u.vendorDiffers} old={u.lsVendorName} next={u.edelweiss.vendor} />
       <DiffCell differs={u.brandDiffers} old={u.lsManufacturerName} next={u.edelweiss.brand} />
-      <DiffCell
-        differs={u.tagsDiffer}
-        old={u.lsTags.join(", ")}
-        next={[...new Set([...u.authorTags, ...u.lsTags.filter(isCuratedTag)])].join(", ")}
-      />
+      <DiffCell differs={u.tagsDiffer} old={u.lsTags.join(", ")} next={nextTags}>
+        {u.edelweiss.author2 !== "" && (
+          <button className="swap-author-btn" onClick={onSwap} title="Swap author">
+            ⇆
+          </button>
+        )}
+      </DiffCell>
     </tr>
   );
 }
@@ -198,17 +218,22 @@ function AdditionRow({
   title,
   storeCategory,
   categoryMap,
+  swapped,
   onTitleChange,
   onCategoryChange,
+  onSwap,
 }: {
   item: EdelweissItem;
   title: string;
   storeCategory: string;
   categoryMap: Map<string, string>;
+  swapped: boolean;
   onTitleChange: (val: string) => void;
   onCategoryChange: (val: string) => void;
+  onSwap: () => void;
 }) {
   const categoryKnown = categoryMap.size === 0 || categoryMap.has(storeCategory);
+  const effectiveAuthor = swapped ? item.author2 : item.author;
   return (
     <tr>
       <td>
@@ -221,7 +246,14 @@ function AdditionRow({
           <CategoryInput value={storeCategory} categoryMap={categoryMap} onChange={onCategoryChange} />
         )}
       </td>
-      <td>{item.author}</td>
+      <td>
+        {effectiveAuthor}
+        {item.author2 !== "" && (
+          <button className="swap-author-btn" onClick={onSwap} title="Swap author">
+            ⇆
+          </button>
+        )}
+      </td>
       <td className="mono">{item.ean}</td>
       <td>{item.vendor}</td>
       <td>{item.brand}</td>
@@ -249,6 +281,16 @@ export default function Review({
 }: Props) {
   const navigate = useNavigate();
   const [showUnchanged, setShowUnchanged] = useState(false);
+  const [toggledEans, setToggledEans] = useState<Set<string>>(new Set());
+
+  function toggleSwap(ean: string) {
+    setToggledEans((prev) => {
+      const next = new Set(prev);
+      if (next.has(ean)) next.delete(ean);
+      else next.add(ean);
+      return next;
+    });
+  }
 
   const isConfigured = !!(lsConfig.refreshToken && lsConfig.clientId && lsConfig.clientSecret && lsConfig.accountId);
 
@@ -283,7 +325,11 @@ export default function Review({
       order.id,
       order.items
         .filter((item) => lsItems.has(item.ean))
-        .map((item) => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap)),
+        .map((item) => {
+          const u = buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap);
+          if (toggledEans.has(item.ean)) u.useAuthor2 = !u.useAuthor2;
+          return u;
+        }),
     ])
   );
 
@@ -332,7 +378,7 @@ export default function Review({
                 {(updatesByOrder.get(activeOrder.id) ?? [])
                   .filter((u) => showUnchanged || u.changed)
                   .map((u) => (
-                    <UpdateRow key={u.edelweiss.ean} u={u} />
+                    <UpdateRow key={u.edelweiss.ean} u={u} onSwap={() => toggleSwap(u.edelweiss.ean)} />
                   ))}
               </tbody>
             </table>
@@ -358,8 +404,10 @@ export default function Review({
                     title={titleOverrides.get(item.ean) ?? item.title}
                     storeCategory={categoryOverrides.get(item.ean) ?? item.storeCategory}
                     categoryMap={categoryMap}
+                    swapped={toggledEans.has(item.ean)}
                     onTitleChange={(val) => onTitleOverride(item.ean, val)}
                     onCategoryChange={(val) => onCategoryOverride(item.ean, val)}
+                    onSwap={() => toggleSwap(item.ean)}
                   />
                 ))}
               </tbody>
@@ -372,22 +420,18 @@ export default function Review({
         <button
           className="primary"
           onClick={() => {
-            const updates = orders.flatMap((order) =>
-              order.items
-                .filter((item) => lsItems.has(item.ean))
-                .map((item) => buildLightspeedUpdate(item, lsItems.get(item.ean)!, vendorMap, manufacturerMap))
-                .filter((u) => u.changed)
-            );
+            const updates = orders.flatMap((order) => (updatesByOrder.get(order.id) ?? []).filter((u) => u.changed));
             const additions: LightspeedAddition[] = orders.flatMap((order) =>
               order.items
                 .filter((item) => !lsItems.has(item.ean))
                 .map((item) => {
                   const title = titleOverrides.get(item.ean) ?? item.title;
                   const storeCategory = categoryOverrides.get(item.ean) ?? item.storeCategory;
+                  const author = toggledEans.has(item.ean) ? item.author2 : item.author;
                   return {
                     title,
                     ean: item.ean,
-                    author: item.author,
+                    author,
                     vendor: item.vendor,
                     brand: item.brand,
                     listPrice: item.listPrice,

@@ -64,6 +64,7 @@ export default function Import({ orders, onImport, mappings, activeTab, onTabCha
               listPrice: parseFloat(row["List Price"]) || 0,
               storeCategory: row["Store Category"]?.trim() ?? "",
               author: row["Author"]?.trim() ?? "",
+              author2: row["Author 2"]?.trim() ?? "",
               cost: parseFloat(row["Cost"]) || 0,
             }))
             .filter((item) => item.ean !== "");
@@ -218,6 +219,7 @@ export default function Import({ orders, onImport, mappings, activeTab, onTabCha
                 <tr>
                   <th>Title</th>
                   <th>Author</th>
+                  <th>Author 2</th>
                   <th>EAN</th>
                   <th>Vendor</th>
                   <th>Brand</th>
@@ -230,6 +232,7 @@ export default function Import({ orders, onImport, mappings, activeTab, onTabCha
                   <tr key={item.ean}>
                     <td>{item.title}</td>
                     <td>{item.author}</td>
+                    <td>{item.author2}</td>
                     <td className="mono">{item.ean}</td>
                     <td>{item.vendor}</td>
                     <td>{item.brand}</td>

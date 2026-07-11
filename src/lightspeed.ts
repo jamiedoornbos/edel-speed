@@ -513,13 +513,21 @@ export async function uploadSingleAddition(
 // ── Build update record ─────────────────────────────────────────────────────
 
 // Build a LightspeedUpdate by comparing an Edelweiss item against its LS counterpart.
+function tagsDifferFrom(authorTags: string[], lsTags: string[]): boolean {
+  return (
+    !authorTags.every((tag) => lsTags.includes(tag)) ||
+    lsTags.some((tag) => !authorTags.includes(tag) && !isCuratedTag(tag))
+  );
+}
+
 export function buildLightspeedUpdate(
   item: EdelweissItem,
   lsItem: LightspeedItem,
   vendorMap: Map<string, string>,
   manufacturerMap: Map<string, string>
 ): LightspeedUpdate {
-  const authorTags = authorToTags(item.author);
+  const author1Tags = authorToTags(item.author);
+  const author2Tags = authorToTags(item.author2);
   const rawTag = lsItem.Tags?.tag;
   const lsTags = rawTag ? (Array.isArray(rawTag) ? rawTag : [rawTag]) : [];
 
@@ -527,10 +535,16 @@ export function buildLightspeedUpdate(
   const lsVendorName = vendorMap.get(lsItem.defaultVendorID ?? "") ?? "";
   const lsManufacturerName = manufacturerMap.get(lsItem.manufacturerID ?? "") ?? "";
 
+  const tagsAuthor1Differ = tagsDifferFrom(author1Tags, lsTags);
+  const tagsAuthor2Differ = tagsDifferFrom(author2Tags, lsTags);
+  // Auto-select author2 only when it's an exact match and author1 isn't.
+  const useAuthor2 = author2Tags.length > 0 && !tagsAuthor2Differ && tagsAuthor1Differ;
+
   return {
     edelweiss: item,
     lsItem,
-    authorTags,
+    author1Tags,
+    author2Tags,
     lsTags,
     lsCost,
     lsVendorName,
@@ -538,9 +552,15 @@ export function buildLightspeedUpdate(
     costDiffers: Math.abs(item.cost - lsCost) > 0.001,
     vendorDiffers: item.vendor.toLowerCase() !== lsVendorName.toLowerCase(),
     brandDiffers: item.brand !== "" && item.brand.toLowerCase() !== lsManufacturerName.toLowerCase(),
-    tagsDiffer:
-      !authorTags.every((tag) => lsTags.includes(tag)) ||
-      lsTags.some((tag) => !authorTags.includes(tag) && !isCuratedTag(tag)),
+    tagsAuthor1Differ,
+    tagsAuthor2Differ,
+    useAuthor2,
+    get authorTags() {
+      return this.useAuthor2 ? this.author2Tags : this.author1Tags;
+    },
+    get tagsDiffer() {
+      return this.useAuthor2 ? this.tagsAuthor2Differ : this.tagsAuthor1Differ;
+    },
     get changed() {
       return this.costDiffers || this.vendorDiffers || this.brandDiffers || this.tagsDiffer;
     },
