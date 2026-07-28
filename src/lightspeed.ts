@@ -439,19 +439,25 @@ export async function uploadSingleItem(
   }
 
   // ── Vendor number (ISBN/EAN) record ────────────────────────────────────────
-  // Use the vendorID that will be in effect after this update.
+  // ItemVendorNum has no standalone endpoint — write via PUT to the Item,
+  // sending the full desired list (existing entries + new one) like we do for Tags.
   const effectiveVendorID =
     (vendorDiffers ? reverseVendorMap.get(edelweiss.vendor.toLowerCase()) : null) ?? lsItem.defaultVendorID;
   if (effectiveVendorID && edelweiss.ean) {
     const existingNums = getVendorNums(lsItem);
     const alreadyHasNum = existingNums.some((n) => n.vendorID === effectiveVendorID);
     if (!alreadyHasNum) {
+      const allNums = [
+        ...existingNums,
+        { vendorID: effectiveVendorID, value: edelweiss.ean, cost: edelweiss.cost.toFixed(2) },
+      ];
+      const numPayload = allNums.length === 1 ? allNums[0] : allNums;
       const { response: vnRes, rateLimitHits: vnHits } = await fetchWithRetry(
-        `${API_BASE}/Account/${accountId}/Item/${itemID}/ItemVendorNum.json`,
+        `${API_BASE}/Account/${accountId}/Item/${itemID}.json`,
         {
-          method: "POST",
+          method: "PUT",
           headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ vendorID: effectiveVendorID, vendorNum: edelweiss.ean }),
+          body: JSON.stringify({ ItemVendorNums: { ItemVendorNum: numPayload } }),
         }
       );
       rateLimitHits += vnHits;
@@ -549,11 +555,13 @@ export async function uploadSingleAddition(
   // ── Vendor number (ISBN/EAN) record ────────────────────────────────────────
   if (vendorID && addition.ean) {
     const { response: vnRes, rateLimitHits: vnHits } = await fetchWithRetry(
-      `${API_BASE}/Account/${accountId}/Item/${itemID}/ItemVendorNum.json`,
+      `${API_BASE}/Account/${accountId}/Item/${itemID}.json`,
       {
-        method: "POST",
+        method: "PUT",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ vendorID, vendorNum: addition.ean }),
+        body: JSON.stringify({
+          ItemVendorNums: { ItemVendorNum: { vendorID, value: addition.ean, cost: addition.cost.toFixed(2) } },
+        }),
       }
     );
     rateLimitHits += vnHits;
@@ -596,6 +604,9 @@ export function buildLightspeedUpdate(
   // Auto-select author2 only when it's an exact match and author1 isn't.
   const useAuthor2 = author2Tags.length > 0 && !tagsAuthor2Differ && tagsAuthor1Differ;
 
+  const existingNums = getVendorNums(lsItem);
+  const vendorNumMissing = !!lsItem.defaultVendorID && !existingNums.some((n) => n.vendorID === lsItem.defaultVendorID);
+
   return {
     edelweiss: item,
     lsItem,
@@ -611,6 +622,7 @@ export function buildLightspeedUpdate(
     tagsAuthor1Differ,
     tagsAuthor2Differ,
     useAuthor2,
+    vendorNumMissing,
     get authorTags() {
       return this.useAuthor2 ? this.author2Tags : this.author1Tags;
     },
@@ -618,7 +630,7 @@ export function buildLightspeedUpdate(
       return this.useAuthor2 ? this.tagsAuthor2Differ : this.tagsAuthor1Differ;
     },
     get changed() {
-      return this.costDiffers || this.vendorDiffers || this.brandDiffers || this.tagsDiffer;
+      return this.costDiffers || this.vendorDiffers || this.brandDiffers || this.tagsDiffer || this.vendorNumMissing;
     },
   };
 }

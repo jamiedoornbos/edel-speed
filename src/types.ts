@@ -33,7 +33,8 @@ export interface LightspeedConfig {
 export interface ItemVendorNum {
   itemVendorNumID: string;
   vendorID: string;
-  vendorNum: string;
+  value: string;
+  cost: string;
 }
 
 export interface LightspeedItem {
@@ -63,6 +64,7 @@ export interface LightspeedUpdate {
   tagsAuthor1Differ: boolean;
   tagsAuthor2Differ: boolean;
   useAuthor2: boolean;
+  vendorNumMissing: boolean;
   // getters — depend on useAuthor2:
   readonly authorTags: string[];
   readonly tagsDiffer: boolean;

@@ -30,7 +30,7 @@ const UPDATE_COLUMNS = (
     <th>Cost</th>
     <th>Vendor</th>
     <th>Brand</th>
-    <th>Tags</th>
+    <th colSpan={2}>Tags</th>
   </tr>
 );
 
@@ -38,7 +38,7 @@ const ADDITION_COLUMNS = (
   <tr>
     <th>Title</th>
     <th>SubCategory</th>
-    <th>Author</th>
+    <th colSpan={2}>Author</th>
     <th>EAN</th>
     <th>Vendor</th>
     <th>Brand</th>
@@ -47,28 +47,14 @@ const ADDITION_COLUMNS = (
   </tr>
 );
 
-function DiffCell({
-  differs,
-  old: oldVal,
-  next,
-  children,
-}: {
-  differs: boolean;
-  old: string;
-  next: string;
-  children?: React.ReactNode;
-}) {
-  if (!differs)
-    return (
-      <td>
-        {next}
-        {children}
-      </td>
-    );
+function DiffCell({ differs, old: oldVal, next }: { differs: boolean; old: string; next?: string }) {
+  if (!differs) return <td>{next}</td>;
+  if (!next) {
+    return <td className="cell-diff">{oldVal}</td>;
+  }
   return (
     <td className="cell-diff">
       {oldVal} → {next}
-      {children}
     </td>
   );
 }
@@ -88,15 +74,20 @@ function UpdateRow({ u, onSwap }: { u: LightspeedUpdate; onSwap: () => void }) {
       </td>
       <td className="mono">{u.edelweiss.ean}</td>
       <DiffCell differs={u.costDiffers} old={`$${u.lsCost.toFixed(2)}`} next={`$${u.edelweiss.cost.toFixed(2)}`} />
-      <DiffCell differs={u.vendorDiffers} old={u.lsVendorName} next={u.edelweiss.vendor} />
+      <DiffCell
+        differs={u.vendorDiffers || u.vendorNumMissing}
+        old={u.lsVendorName}
+        next={u.vendorDiffers ? u.edelweiss.vendor : undefined}
+      />
       <DiffCell differs={u.brandDiffers} old={u.lsManufacturerName} next={u.edelweiss.brand} />
-      <DiffCell differs={u.tagsDiffer} old={u.lsTags.join(", ")} next={nextTags}>
+      <DiffCell differs={u.tagsDiffer} old={u.lsTags.join(", ")} next={nextTags} />
+      <td>
         {u.edelweiss.author2 !== "" && (
           <button className="swap-author-btn" onClick={onSwap} title="Swap author">
             ⇆
           </button>
         )}
-      </DiffCell>
+      </td>
     </tr>
   );
 }
@@ -246,8 +237,8 @@ function AdditionRow({
           <CategoryInput value={storeCategory} categoryMap={categoryMap} onChange={onCategoryChange} />
         )}
       </td>
+      <td>{effectiveAuthor}</td>
       <td>
-        {effectiveAuthor}
         {item.author2 !== "" && (
           <button className="swap-author-btn" onClick={onSwap} title="Swap author">
             ⇆
