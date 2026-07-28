@@ -30,6 +30,12 @@ export interface LightspeedConfig {
   refreshToken: string;
 }
 
+export interface ItemVendorNum {
+  itemVendorNumID: string;
+  vendorID: string;
+  vendorNum: string;
+}
+
 export interface LightspeedItem {
   itemID: string;
   description: string;
@@ -38,6 +44,7 @@ export interface LightspeedItem {
   defaultVendorID: string;
   manufacturerID: string;
   Tags?: { tag: string | string[] };
+  ItemVendorNums?: { ItemVendorNum: ItemVendorNum | ItemVendorNum[] } | "";
   [key: string]: unknown;
 }
 

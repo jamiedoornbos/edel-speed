@@ -1,5 +1,5 @@
 import { fetch } from "@tauri-apps/plugin-http";
-import { EdelweissItem, LightspeedAddition, LightspeedItem, LightspeedUpdate } from "./types";
+import { EdelweissItem, ItemVendorNum, LightspeedAddition, LightspeedItem, LightspeedUpdate } from "./types";
 
 const TOKEN_URL = "https://cloud.lightspeedapp.com/oauth/access_token.php";
 const API_BASE = "https://api.lightspeedapp.com/API/V3";
@@ -74,7 +74,7 @@ export async function getAccessToken(clientId: string, clientSecret: string, ref
 
 // Fetch one batch of items by customSku.
 async function fetchBatch(accessToken: string, accountId: string, skus: string[]): Promise<LightspeedItem[]> {
-  const url = `${API_BASE}/Account/${accountId}/Item.json?customSku=IN,[${skus.join(",")}]&load_relations=["Tags"]`;
+  const url = `${API_BASE}/Account/${accountId}/Item.json?customSku=IN,[${skus.join(",")}]&load_relations=["Tags","ItemVendorNums"]`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -227,6 +227,14 @@ export function authorToTags(author: string): string[] {
 }
 
 // ── Upload ─────────────────────────────────────────────────────────────────
+
+function getVendorNums(lsItem: LightspeedItem): ItemVendorNum[] {
+  const raw = lsItem.ItemVendorNums;
+  if (!raw || typeof raw === "string") return [];
+  const item = raw.ItemVendorNum;
+  if (!item) return [];
+  return Array.isArray(item) ? item : [item];
+}
 
 // Parse a Lightspeed error response body and return a human-friendly message.
 // Falls back to the raw text for unknown error classes.
@@ -430,6 +438,37 @@ export async function uploadSingleItem(
     fieldsChanged.push("tags");
   }
 
+  // ── Vendor number (ISBN/EAN) record ────────────────────────────────────────
+  // Use the vendorID that will be in effect after this update.
+  const effectiveVendorID =
+    (vendorDiffers ? reverseVendorMap.get(edelweiss.vendor.toLowerCase()) : null) ?? lsItem.defaultVendorID;
+  if (effectiveVendorID && edelweiss.ean) {
+    const existingNums = getVendorNums(lsItem);
+    const alreadyHasNum = existingNums.some((n) => n.vendorID === effectiveVendorID);
+    if (!alreadyHasNum) {
+      const { response: vnRes, rateLimitHits: vnHits } = await fetchWithRetry(
+        `${API_BASE}/Account/${accountId}/Item/${itemID}/ItemVendorNum.json`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ vendorID: effectiveVendorID, vendorNum: edelweiss.ean }),
+        }
+      );
+      rateLimitHits += vnHits;
+      if (!vnRes.ok) {
+        const text = await vnRes.text();
+        return {
+          fieldsChanged,
+          tagsAdded,
+          tagsRemoved,
+          rateLimitHits,
+          error: lsErrorMessage(vnRes.status, text),
+        };
+      }
+      fieldsChanged.push("vendorNum");
+    }
+  }
+
   return { fieldsChanged, tagsAdded, tagsRemoved, rateLimitHits };
 }
 
@@ -504,6 +543,23 @@ export async function uploadSingleAddition(
     if (!tagRes.ok) {
       const text = await tagRes.text();
       return { itemID, rateLimitHits, error: `Tags PUT failed (${tagRes.status}): ${text}` };
+    }
+  }
+
+  // ── Vendor number (ISBN/EAN) record ────────────────────────────────────────
+  if (vendorID && addition.ean) {
+    const { response: vnRes, rateLimitHits: vnHits } = await fetchWithRetry(
+      `${API_BASE}/Account/${accountId}/Item/${itemID}/ItemVendorNum.json`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ vendorID, vendorNum: addition.ean }),
+      }
+    );
+    rateLimitHits += vnHits;
+    if (!vnRes.ok) {
+      const text = await vnRes.text();
+      return { itemID, rateLimitHits, error: lsErrorMessage(vnRes.status, text) };
     }
   }
 
