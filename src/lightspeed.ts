@@ -199,7 +199,7 @@ export async function fetchCategories(accessToken: string, accountId: string): P
 // ── Tag / author utilities ──────────────────────────────────────────────────
 
 export function isCuratedTag(tag: string): boolean {
-  return tag.startsWith("bestseller") || tag.startsWith("paccenter");
+  return tag.startsWith("bestseller") || tag.startsWith("paccenter") || tag.startsWith('giftguide');
 }
 
 export function slugify(s: string): string {
